@@ -152,6 +152,10 @@ authored links. If no link exists for a direction, that direction does nothing.
 `DrawItem` reports both the effective nav target and whether it came from a
 saved override or an explicit widget link.
 
+`gmenu` also keeps a short runtime return-path memory. If multiple widgets enter
+the same target, the opposite direction returns to the widget that was used to
+enter it. This is transient runtime state, not an extra persisted nav link.
+
 Registered screen metadata is available for debug tools:
 
 ```cpp

@@ -16,6 +16,11 @@ constexpr gmenu::WidgetId kBack = 12;
 constexpr gmenu::ScreenId kInteraction = 3;
 constexpr gmenu::WidgetId kDragSlider = 30;
 constexpr gmenu::WidgetId kMouseOption = 31;
+constexpr gmenu::ScreenId kReturnNav = 4;
+constexpr gmenu::WidgetId kReturnLeft = 40;
+constexpr gmenu::WidgetId kReturnMiddle = 41;
+constexpr gmenu::WidgetId kReturnRight = 42;
+constexpr gmenu::WidgetId kReturnLower = 43;
 
 void command_mark(gmenu::BuildContext& ctx, int payload) {
     (void)payload;
@@ -82,6 +87,33 @@ void build_interaction(gmenu::BuildContext& ctx, gmenu::Screen& out) {
                                                {"low", "medium", "high"});
     option.nav_up = kDragSlider;
     out.widgets.push_back(std::move(option));
+}
+
+void build_return_nav(gmenu::BuildContext&, gmenu::Screen& out) {
+    out.id = kReturnNav;
+    out.layout_id = 100;
+    out.default_focus = kReturnLeft;
+
+    gmenu::Widget left = gmenu::button(kReturnLeft, "play", "Left", gmenu::Action::none());
+    left.nav_right = kReturnMiddle;
+    left.nav_down = kReturnLower;
+    out.widgets.push_back(std::move(left));
+
+    gmenu::Widget middle =
+        gmenu::button(kReturnMiddle, "settings", "Middle", gmenu::Action::none());
+    middle.nav_left = kReturnLeft;
+    middle.nav_right = kReturnRight;
+    middle.nav_down = kReturnLower;
+    out.widgets.push_back(std::move(middle));
+
+    gmenu::Widget right = gmenu::button(kReturnRight, "name", "Right", gmenu::Action::none());
+    right.nav_left = kReturnMiddle;
+    right.nav_down = kReturnLower;
+    out.widgets.push_back(std::move(right));
+
+    gmenu::Widget lower = gmenu::button(kReturnLower, "back", "Lower", gmenu::Action::none());
+    lower.nav_up = kReturnLeft;
+    out.widgets.push_back(std::move(lower));
 }
 
 void test_stack_and_commands() {
@@ -488,6 +520,37 @@ void test_nav_overrides() {
     assert(!issues.empty());
 }
 
+void test_return_nav_memory() {
+    std::vector<glayout::Layout> layouts = gmenu_test::make_layouts();
+    gmenu::Menu menu;
+    menu.set_layouts(&layouts);
+    menu.register_screen(kReturnNav, build_return_nav);
+
+    assert(menu.set_root(kReturnNav));
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    assert(menu.focus() == kReturnLeft);
+
+    gmenu::Input right;
+    right.right = true;
+    menu.update(right, 0.016f, 800, 600);
+    assert(menu.focus() == kReturnMiddle);
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    menu.update(right, 0.016f, 800, 600);
+    assert(menu.focus() == kReturnRight);
+
+    gmenu::Input down;
+    down.down = true;
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    menu.update(down, 0.016f, 800, 600);
+    assert(menu.focus() == kReturnLower);
+
+    gmenu::Input up;
+    up.up = true;
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    menu.update(up, 0.016f, 800, 600);
+    assert(menu.focus() == kReturnRight);
+}
+
 void test_nav_persistence() {
     std::filesystem::path path =
         std::filesystem::temp_directory_path() / "gmenu_nav_persistence_test.lisp";
@@ -529,6 +592,7 @@ int main() {
     test_mouse_focus_lock();
     test_slider_drag_and_option_hit_regions();
     test_nav_overrides();
+    test_return_nav_memory();
     test_nav_persistence();
     test_ginput_mapping();
     return 0;

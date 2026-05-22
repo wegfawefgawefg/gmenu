@@ -77,6 +77,11 @@ class Menu {
     struct ScreenInstance {
         ScreenId id = invalid_screen;
     };
+    struct NavReturn {
+        WidgetId from = invalid_widget;
+        NavDirection direction = NavDirection::Up;
+        WidgetId target = invalid_widget;
+    };
 
     const ScreenDef* find_screen(ScreenId id) const;
     Screen build_current_screen(int width, int height, glayout::FormFactor form_factor);
@@ -95,6 +100,10 @@ class Menu {
     WidgetId first_selectable(const Screen& screen) const;
     WidgetId resolve_nav(const Screen& screen, WidgetId from, WidgetId explicit_target,
                          int direction) const;
+    WidgetId resolve_return_nav(const Screen& screen, WidgetId from, NavDirection direction) const;
+    void remember_return_nav(WidgetId from, WidgetId to, NavDirection return_direction);
+    void move_focus_with_return(const Screen& screen, WidgetId target,
+                                NavDirection return_direction);
     WidgetId effective_nav(const Screen& screen, const Widget& widget,
                            NavDirection direction) const;
     NavSource nav_source(const Screen& screen, const Widget& widget, NavDirection direction,
@@ -120,6 +129,7 @@ class Menu {
     std::vector<ScreenInstance> instances;
     std::vector<ScreenId> public_stack;
     std::vector<DrawItem> items;
+    std::vector<NavReturn> nav_returns;
     const std::vector<glayout::Layout>* layouts = nullptr;
     const glayout::LayoutStore* layout_store = nullptr;
     const FeedbackHooks* feedback_hooks = nullptr;

@@ -130,6 +130,11 @@ simple nav links for generated lists, but runtime navigation does not guess a
 fallback. If no effective link exists for a direction, that direction is
 rejected.
 
+Navigation keeps a short transient return-path memory. If several widgets enter
+the same target, pressing the opposite direction from that target returns to the
+widget that was actually used to enter it. Authored links remain the persisted
+nav graph; return memory is runtime state only.
+
 Rows that need multiple controls should use normal widgets plus
 `append_composed_row`, not extra fields on one widget. This keeps text inputs,
 buttons, sliders, and option cycles independently focusable while still making

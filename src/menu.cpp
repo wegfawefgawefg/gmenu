@@ -108,6 +108,7 @@ void Menu::clear() {
     instances.clear();
     public_stack.clear();
     items.clear();
+    nav_returns.clear();
     focused = invalid_widget;
     hovered = invalid_widget;
     pressed = invalid_widget;
@@ -229,9 +230,12 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
             const Widget* widget = find_widget(screen, focused);
             if (widget) {
                 lock_mouse_focus(input);
-                WidgetId target = resolve_nav(screen, focused, widget->nav_up, -1);
+                WidgetId target = resolve_return_nav(screen, focused, NavDirection::Up);
+                if (target == invalid_widget) {
+                    target = resolve_nav(screen, focused, widget->nav_up, -1);
+                }
                 if (target != invalid_widget) {
-                    focused = target;
+                    move_focus_with_return(screen, target, NavDirection::Down);
                 } else {
                     record_widget_feedback(FeedbackType::Rejected, focused);
                 }
@@ -240,9 +244,12 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
             const Widget* widget = find_widget(screen, focused);
             if (widget) {
                 lock_mouse_focus(input);
-                WidgetId target = resolve_nav(screen, focused, widget->nav_down, 1);
+                WidgetId target = resolve_return_nav(screen, focused, NavDirection::Down);
+                if (target == invalid_widget) {
+                    target = resolve_nav(screen, focused, widget->nav_down, 1);
+                }
                 if (target != invalid_widget) {
-                    focused = target;
+                    move_focus_with_return(screen, target, NavDirection::Up);
                 } else {
                     record_widget_feedback(FeedbackType::Rejected, focused);
                 }
@@ -258,10 +265,13 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
             } else if (widget && (widget->type == WidgetType::Slider1D ||
                                   widget->type == WidgetType::OptionCycle)) {
                 adjust_widget(*widget, -1);
-            } else if (widget && widget->nav_left != invalid_widget) {
-                WidgetId target = resolve_nav(screen, focused, widget->nav_left, -1);
+            } else if (widget) {
+                WidgetId target = resolve_return_nav(screen, focused, NavDirection::Left);
+                if (target == invalid_widget && widget->nav_left != invalid_widget) {
+                    target = resolve_nav(screen, focused, widget->nav_left, -1);
+                }
                 if (target != invalid_widget) {
-                    focused = target;
+                    move_focus_with_return(screen, target, NavDirection::Right);
                 } else {
                     record_widget_feedback(FeedbackType::Rejected, focused);
                 }
@@ -279,10 +289,13 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
             } else if (widget && (widget->type == WidgetType::Slider1D ||
                                   widget->type == WidgetType::OptionCycle)) {
                 adjust_widget(*widget, 1);
-            } else if (widget && widget->nav_right != invalid_widget) {
-                WidgetId target = resolve_nav(screen, focused, widget->nav_right, 1);
+            } else if (widget) {
+                WidgetId target = resolve_return_nav(screen, focused, NavDirection::Right);
+                if (target == invalid_widget && widget->nav_right != invalid_widget) {
+                    target = resolve_nav(screen, focused, widget->nav_right, 1);
+                }
                 if (target != invalid_widget) {
-                    focused = target;
+                    move_focus_with_return(screen, target, NavDirection::Left);
                 } else {
                     record_widget_feedback(FeedbackType::Rejected, focused);
                 }
@@ -623,6 +636,51 @@ WidgetId Menu::resolve_nav(const Screen& screen, WidgetId from, WidgetId explici
         return invalid_widget;
     }
     return explicit_target;
+}
+
+WidgetId Menu::resolve_return_nav(const Screen& screen, WidgetId from,
+                                  NavDirection direction) const {
+    for (auto it = nav_returns.rbegin(); it != nav_returns.rend(); ++it) {
+        if (it->from != from || it->direction != direction || it->target == invalid_widget) {
+            continue;
+        }
+        const Widget* target = find_widget(screen, it->target);
+        if (target && is_selectable(*target)) {
+            return it->target;
+        }
+    }
+    return invalid_widget;
+}
+
+void Menu::remember_return_nav(WidgetId from, WidgetId to, NavDirection return_direction) {
+    if (from == invalid_widget || to == invalid_widget || from == to) {
+        return;
+    }
+
+    for (auto it = nav_returns.begin(); it != nav_returns.end();) {
+        if (it->from == to && it->direction == return_direction) {
+            it = nav_returns.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    nav_returns.push_back(NavReturn{to, return_direction, from});
+    constexpr std::size_t max_returns = 8;
+    while (nav_returns.size() > max_returns) {
+        nav_returns.erase(nav_returns.begin());
+    }
+}
+
+void Menu::move_focus_with_return(const Screen& screen, WidgetId target,
+                                  NavDirection return_direction) {
+    const Widget* target_widget = find_widget(screen, target);
+    if (!target_widget || !is_selectable(*target_widget)) {
+        return;
+    }
+    const WidgetId previous = focused;
+    focused = target;
+    remember_return_nav(previous, target, return_direction);
 }
 
 const Widget* Menu::find_widget(const Screen& screen, WidgetId id) const {

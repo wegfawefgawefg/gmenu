@@ -14,6 +14,7 @@ behavior.
 
 - screen registration, root, push, pop, replace, and clear
 - focus state and explicit directional navigation
+- short return-nav memory for reversing through shared navigation targets
 - buttons, labels, cards, toggles, sliders, option cycles, and text input
 - command callbacks with integer payloads
 - internal feedback events flushed to optional callbacks after update
@@ -63,6 +64,12 @@ These belong in `gmenu` because they affect behavior, not just drawing.
   Gubsy plays focus, confirm, cant, left, and right sounds from menu behavior.
   `gmenu` reports this through optional feedback callbacks, including richer
   slider and option-cycle adjustment cases.
+
+- Return navigation memory.
+  When several widgets navigate into the same target, `gmenu` remembers the
+  recent path and prefers the reverse path on the next opposite-direction move.
+  For example, `Left/Middle/Right -> Down -> Lower` followed by `Up` returns to
+  whichever top widget was used to enter `Lower`.
 
 - Per-widget activation policy.
   Gubsy has `select_enters_text` and `play_select_sound`. `select_enters_text`
