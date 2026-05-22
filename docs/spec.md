@@ -189,15 +189,16 @@ to copy directly. The extraction should avoid:
 - static vectors inside screen builders
 - layout editor checks inside menu update
 
-## Future Reusable Screens
+## Remaining Host Policy
 
-After the core is stable, `gmenu` should grow common game screens:
+The current reusable screens cover main/list pages, paged save/profile/mod-style
+lists, typed settings pages, profile pickers, and input-bind overview/edit
+pages. The host still owns policy-heavy behavior:
 
-- main menu
-- settings hub
-- user profile picker/editor
-- input profile picker/editor
-- bind editor
-- save slot picker
+- saving settings/profile changes to disk
+- creating/deleting profiles
+- creating/deleting save slots
+- capturing physical input devices for new binds
+- drawing, sounds, transitions, and animation
 
-These screens can assume `gconfig` if needed.
+Those behaviors can be layered on top with commands and caller-owned data.

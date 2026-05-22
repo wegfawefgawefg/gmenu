@@ -21,7 +21,7 @@ struct DemoState {
     bool fullscreen = false;
     float volume = 0.5f;
     int quality = 1;
-    std::string profile_name = "Default";
+    int selected_profile_id = 1;
     bool quit = false;
 };
 
@@ -37,11 +37,6 @@ gmenu::CommandId g_quit_command = gmenu::invalid_command;
 void command_quit(gmenu::BuildContext& ctx, int) {
     auto* state = static_cast<DemoState*>(ctx.user);
     state->quit = true;
-}
-
-gmenu::Widget styled(gmenu::Widget widget, gmenu::StyleId style) {
-    widget.style = style;
-    return widget;
 }
 
 std::vector<glayout::Layout> make_layouts() {
@@ -176,6 +171,12 @@ int main(int, char**) {
     }
 
     DemoState state;
+    std::vector<gmenu::ProfileEntry> profiles{
+        {1, "Default", "keyboard"},
+        {2, "Guest", "gamepad"},
+        {3, "Speedrun", "custom"},
+    };
+    int profile_page = 0;
     std::vector<glayout::Layout> layouts = make_layouts();
     gmenu::Menu menu;
     menu.set_layouts(&layouts);
@@ -198,38 +199,63 @@ int main(int, char**) {
     main_def.items.push_back(gmenu::ListItem{
         13, "row3", "Quit", "", gmenu::Action::command_id(g_quit_command), kButtonStyle});
 
-    gmenu::BasicScreenDef settings_def;
+    gmenu::SettingsScreenDef settings_def;
     settings_def.id = kSettings;
     settings_def.layout_id = 100;
     settings_def.title_id = 2;
     settings_def.title = "settings";
     settings_def.title_style = kTitleStyle;
     settings_def.default_focus = 20;
-    settings_def.widgets.push_back(
-        styled(gmenu::toggle(20, "row0", "Fullscreen", state.fullscreen), kValueStyle));
-    settings_def.widgets.push_back(styled(
-        gmenu::slider_1d(21, "row1", "Volume", state.volume, 0.0f, 1.0f, 0.1f), kValueStyle));
-    settings_def.widgets.push_back(
-        styled(gmenu::option_cycle(22, "row2", "Quality", state.quality, {"low", "medium", "high"}),
-               kValueStyle));
-    settings_def.widgets.push_back(
-        styled(gmenu::button(23, "row3", "Back", gmenu::Action::pop()), kButtonStyle));
+    settings_def.item_style = kValueStyle;
+    settings_def.nav_style = kButtonStyle;
+    settings_def.back_id = 23;
+    settings_def.back_slot = "row3";
+    gmenu::SettingItem fullscreen;
+    fullscreen.id = 20;
+    fullscreen.slot = "row0";
+    fullscreen.label = "Fullscreen";
+    fullscreen.type = gmenu::SettingType::Toggle;
+    fullscreen.bool_value = &state.fullscreen;
+    settings_def.items.push_back(fullscreen);
+    gmenu::SettingItem volume;
+    volume.id = 21;
+    volume.slot = "row1";
+    volume.label = "Volume";
+    volume.type = gmenu::SettingType::Slider1D;
+    volume.float_value = &state.volume;
+    volume.min = 0.0f;
+    volume.max = 1.0f;
+    volume.step = 0.1f;
+    settings_def.items.push_back(volume);
+    gmenu::SettingItem quality;
+    quality.id = 22;
+    quality.slot = "row2";
+    quality.label = "Quality";
+    quality.type = gmenu::SettingType::OptionCycle;
+    quality.option_index = &state.quality;
+    quality.options = {"low", "medium", "high"};
+    settings_def.items.push_back(quality);
 
-    gmenu::BasicScreenDef profiles_def;
+    gmenu::ProfileListScreenDef profiles_def;
     profiles_def.id = kProfiles;
     profiles_def.layout_id = 100;
     profiles_def.title_id = 3;
     profiles_def.title = "profiles";
     profiles_def.title_style = kTitleStyle;
-    profiles_def.default_focus = 30;
-    profiles_def.widgets.push_back(
-        styled(gmenu::text_input(30, "row0", "Name", state.profile_name, 32), kValueStyle));
-    profiles_def.widgets.push_back(
-        styled(gmenu::button(31, "row3", "Back", gmenu::Action::pop()), kButtonStyle));
+    profiles_def.default_focus = 3001;
+    profiles_def.profiles = &profiles;
+    profiles_def.selected_profile_id = &state.selected_profile_id;
+    profiles_def.page = &profile_page;
+    profiles_def.items_per_page = 3;
+    profiles_def.item_slots = {"row0", "row1", "row2"};
+    profiles_def.back_id = 31;
+    profiles_def.back_slot = "row3";
+    profiles_def.nav_style = kButtonStyle;
+    profiles_def.item_style = kValueStyle;
 
     gmenu::register_list_screen(menu, main_def);
-    gmenu::register_basic_screen(menu, settings_def);
-    gmenu::register_basic_screen(menu, profiles_def);
+    gmenu::register_settings_screen(menu, settings_def);
+    gmenu::register_profile_list_screen(menu, profiles_def);
     menu.set_root(kMain);
 
     HeldInput held;
@@ -275,8 +301,9 @@ int main(int, char**) {
             draw_item(renderer, item);
         }
         set_color(renderer, 155, 170, 185);
-        draw_text(renderer, 18.0f, static_cast<float>(height) - 28.0f,
-                  "arrows/wasd navigate, enter select, esc back, type in profile name");
+        draw_text(
+            renderer, 18.0f, static_cast<float>(height) - 28.0f,
+            "arrows/wasd navigate, enter select, esc back, profiles/settings use canned screens");
         SDL_RenderPresent(renderer);
     }
 
