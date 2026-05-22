@@ -61,6 +61,15 @@ struct DemoToggles {
     bool nav_overlay = false;
 };
 
+struct NavEditState {
+    gmenu::WidgetId source = gmenu::invalid_widget;
+    gmenu::NavDirection direction = gmenu::NavDirection::Down;
+    bool has_direction = false;
+    bool mouse_was_down = false;
+    bool clear_source = false;
+    bool clear_link = false;
+};
+
 gmenu::CommandId g_quit_command = gmenu::invalid_command;
 gmenu::CommandId g_select_profile_command = gmenu::invalid_command;
 gmenu::CommandId g_save_profile_command = gmenu::invalid_command;
@@ -270,6 +279,35 @@ const gmenu::DrawItem* find_draw_item(const std::span<const gmenu::DrawItem>& it
     return nullptr;
 }
 
+const gmenu::DrawItem* find_draw_item_at(const std::span<const gmenu::DrawItem>& items, float x,
+                                         float y) {
+    for (const gmenu::DrawItem& item : items) {
+        if (item.type == gmenu::WidgetType::Label) {
+            continue;
+        }
+        const bool inside = x >= item.rect.x && x <= item.rect.x + item.rect.w &&
+                            y >= item.rect.y && y <= item.rect.y + item.rect.h;
+        if (inside) {
+            return &item;
+        }
+    }
+    return nullptr;
+}
+
+const char* direction_text(gmenu::NavDirection direction) {
+    switch (direction) {
+    case gmenu::NavDirection::Up:
+        return "up";
+    case gmenu::NavDirection::Down:
+        return "down";
+    case gmenu::NavDirection::Left:
+        return "left";
+    case gmenu::NavDirection::Right:
+        return "right";
+    }
+    return "down";
+}
+
 SDL_FPoint edge_point(glayout::Rect rect, const char* direction) {
     if (std::string(direction) == "up") {
         return SDL_FPoint{rect.x + rect.w * 0.5f, rect.y};
@@ -301,10 +339,17 @@ void draw_nav_link(SDL_Renderer* renderer, const std::span<const gmenu::DrawItem
     draw_text(renderer, mid_x + 4.0f, mid_y + 4.0f, direction);
 }
 
-void draw_nav_overlay(SDL_Renderer* renderer, const std::span<const gmenu::DrawItem>& items) {
+void draw_nav_overlay(SDL_Renderer* renderer, const std::span<const gmenu::DrawItem>& items,
+                      const NavEditState& nav_editor) {
     for (const gmenu::DrawItem& item : items) {
         if (item.type == gmenu::WidgetType::Label) {
             continue;
+        }
+
+        if (item.id == nav_editor.source) {
+            SDL_FRect rect = to_sdl(item.rect);
+            set_color(renderer, 255, 95, 82);
+            SDL_RenderRect(renderer, &rect);
         }
 
         set_color(renderer, 255, 210, 95);
@@ -367,32 +412,60 @@ void draw_item(SDL_Renderer* renderer, const gmenu::DrawItem& item) {
 }
 
 void apply_key(SDL_Keycode key, bool down, HeldInput& held, gmenu::Input& input,
-               glayout::EditorInput& editor_input, DemoToggles& toggles) {
+               glayout::EditorInput& editor_input, DemoToggles& toggles, NavEditState& nav_editor) {
     switch (key) {
     case SDLK_F1:
         if (down) {
             toggles.layout_edit = !toggles.layout_edit;
+            if (toggles.layout_edit) {
+                toggles.nav_overlay = false;
+            }
+            held = {};
         }
         break;
     case SDLK_F2:
         if (down) {
             toggles.nav_overlay = !toggles.nav_overlay;
+            if (toggles.nav_overlay) {
+                toggles.layout_edit = false;
+            }
+            held = {};
         }
         break;
     case SDLK_UP:
     case SDLK_W:
-        held.up = down;
+        if (toggles.nav_overlay && down) {
+            nav_editor.direction = gmenu::NavDirection::Up;
+            nav_editor.has_direction = true;
+        } else if (!toggles.nav_overlay) {
+            held.up = down;
+        }
         break;
     case SDLK_DOWN:
-        held.down = down;
+        if (toggles.nav_overlay && down) {
+            nav_editor.direction = gmenu::NavDirection::Down;
+            nav_editor.has_direction = true;
+        } else if (!toggles.nav_overlay) {
+            held.down = down;
+        }
         break;
     case SDLK_LEFT:
     case SDLK_A:
-        held.left = down;
+        if (toggles.nav_overlay && down) {
+            nav_editor.direction = gmenu::NavDirection::Left;
+            nav_editor.has_direction = true;
+        } else if (!toggles.nav_overlay) {
+            held.left = down;
+        }
         break;
     case SDLK_RIGHT:
     case SDLK_D:
-        held.right = down;
+        if (toggles.nav_overlay && down) {
+            nav_editor.direction = gmenu::NavDirection::Right;
+            nav_editor.has_direction = true;
+        } else if (!toggles.nav_overlay) {
+            held.right = down;
+        }
         break;
     case SDLK_RETURN:
     case SDLK_SPACE:
@@ -409,11 +482,17 @@ void apply_key(SDL_Keycode key, bool down, HeldInput& held, gmenu::Input& input,
         if (down) {
             input.backspace = true;
             editor_input.key_delete = toggles.layout_edit;
+            if (toggles.nav_overlay) {
+                nav_editor.clear_link = true;
+            }
         }
         break;
     case SDLK_DELETE:
         if (down) {
             editor_input.key_delete = toggles.layout_edit;
+            if (toggles.nav_overlay) {
+                nav_editor.clear_source = true;
+            }
         }
         break;
     case SDLK_Q:
@@ -479,9 +558,10 @@ int main(int, char**) {
 
     DemoState state;
     init_input_demo(state);
-    std::vector<glayout::Layout> layouts = make_layouts();
+    glayout::LayoutStore layout_store;
+    layout_store.layouts = make_layouts();
     gmenu::Menu menu;
-    menu.set_layouts(&layouts);
+    menu.set_layout_store(&layout_store);
     menu.set_user_data(&state);
     g_quit_command = menu.register_command(command_quit);
     g_select_profile_command = menu.register_command(command_select_profile);
@@ -628,6 +708,7 @@ int main(int, char**) {
 
     HeldInput held;
     glayout::EditorState layout_editor;
+    NavEditState nav_editor;
     DemoToggles toggles;
     bool running = true;
     Uint64 last_ticks = SDL_GetTicks();
@@ -641,7 +722,7 @@ int main(int, char**) {
                 running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
                 const bool down = event.type == SDL_EVENT_KEY_DOWN;
-                apply_key(event.key.key, down, held, input, editor_input, toggles);
+                apply_key(event.key.key, down, held, input, editor_input, toggles, nav_editor);
                 editor_input.ctrl = (event.key.mod & SDL_KMOD_CTRL) != 0;
                 editor_input.shift = (event.key.mod & SDL_KMOD_SHIFT) != 0;
             } else if (event.type == SDL_EVENT_TEXT_INPUT) {
@@ -653,6 +734,18 @@ int main(int, char**) {
         input.down = held.down;
         input.left = held.left;
         input.right = held.right;
+        if (toggles.layout_edit || toggles.nav_overlay) {
+            input.up = false;
+            input.down = false;
+            input.left = false;
+            input.right = false;
+            input.select = false;
+            input.back = false;
+            input.page_prev = false;
+            input.page_next = false;
+            input.backspace = false;
+            input.text.clear();
+        }
         input.mouse_valid = true;
         float mouse_x = 0.0f;
         float mouse_y = 0.0f;
@@ -660,7 +753,7 @@ int main(int, char**) {
         input.mouse_x = mouse_x;
         input.mouse_y = mouse_y;
         const bool left_mouse_down = (buttons & SDL_BUTTON_LMASK) != 0;
-        input.mouse_down = !toggles.layout_edit && left_mouse_down;
+        input.mouse_down = !toggles.layout_edit && !toggles.nav_overlay && left_mouse_down;
         editor_input.mouse_x = mouse_x;
         editor_input.mouse_y = mouse_y;
         editor_input.left_down = toggles.layout_edit && left_mouse_down;
@@ -671,8 +764,8 @@ int main(int, char**) {
         Uint64 now = SDL_GetTicks();
         float dt = static_cast<float>(now - last_ticks) / 1000.0f;
         last_ticks = now;
-        if (toggles.layout_edit && !layouts.empty()) {
-            glayout::editor_begin_frame(layout_editor, layouts.front(), editor_input,
+        if (toggles.layout_edit && !layout_store.layouts.empty()) {
+            glayout::editor_begin_frame(layout_editor, layout_store.layouts.front(), editor_input,
                                         glayout::Viewport{
                                             0.0f,
                                             0.0f,
@@ -685,6 +778,45 @@ int main(int, char**) {
             }
         }
         menu.update(input, dt, width, height);
+        const bool nav_clicked =
+            toggles.nav_overlay && left_mouse_down && !nav_editor.mouse_was_down;
+        nav_editor.mouse_was_down = left_mouse_down;
+        if (nav_clicked) {
+            const gmenu::DrawItem* hit = find_draw_item_at(menu.draw_items(), mouse_x, mouse_y);
+            if (hit && nav_editor.source != gmenu::invalid_widget && nav_editor.has_direction) {
+                menu.set_nav_link(menu.current_screen(), nav_editor.source, nav_editor.direction,
+                                  hit->id);
+                state.save_status = "nav " + std::to_string(nav_editor.source) + " " +
+                                    direction_text(nav_editor.direction) + " -> " +
+                                    std::to_string(hit->id);
+                nav_editor.source = hit->id;
+                nav_editor.has_direction = false;
+                menu.update(gmenu::Input{}, 0.0f, width, height);
+            } else if (hit) {
+                nav_editor.source = hit->id;
+                nav_editor.has_direction = false;
+            }
+        }
+        if (toggles.nav_overlay && nav_editor.source != gmenu::invalid_widget &&
+            nav_editor.clear_link && nav_editor.has_direction) {
+            menu.clear_nav_link(menu.current_screen(), nav_editor.source, nav_editor.direction);
+            state.save_status = "cleared nav " + std::to_string(nav_editor.source) + " " +
+                                direction_text(nav_editor.direction);
+            nav_editor.clear_link = false;
+            nav_editor.has_direction = false;
+            menu.update(gmenu::Input{}, 0.0f, width, height);
+        } else if (toggles.nav_overlay && nav_editor.source != gmenu::invalid_widget &&
+                   (nav_editor.clear_link || nav_editor.clear_source)) {
+            menu.clear_nav_links(menu.current_screen(), nav_editor.source);
+            state.save_status = "cleared nav links for " + std::to_string(nav_editor.source);
+            nav_editor.clear_link = false;
+            nav_editor.clear_source = false;
+            nav_editor.has_direction = false;
+            menu.update(gmenu::Input{}, 0.0f, width, height);
+        } else {
+            nav_editor.clear_link = false;
+            nav_editor.clear_source = false;
+        }
 
         set_color(renderer, 16, 22, 29);
         SDL_RenderClear(renderer);
@@ -694,20 +826,31 @@ int main(int, char**) {
         for (const gmenu::DrawItem& item : menu.draw_items()) {
             draw_item(renderer, item);
         }
-        if (toggles.layout_edit && !layouts.empty()) {
-            draw_layout_overlay(renderer, layout_editor, layouts.front(), width, height);
+        if (toggles.layout_edit && !layout_store.layouts.empty()) {
+            draw_layout_overlay(renderer, layout_editor, layout_store.layouts.front(), width,
+                                height);
         }
         if (toggles.nav_overlay) {
-            draw_nav_overlay(renderer, menu.draw_items());
+            draw_nav_overlay(renderer, menu.draw_items(), nav_editor);
         }
         set_color(renderer, 155, 170, 185);
         if (toggles.layout_edit) {
             draw_text(renderer, 18.0f, static_cast<float>(height) - 44.0f,
                       "F1 layout edit ON: drag rectangles, Z/Y undo/redo, C/V "
                       "copy/paste, delete remove");
+        } else if (toggles.nav_overlay) {
+            std::string nav_text = "F2 nav edit ON: click source";
+            if (nav_editor.source != gmenu::invalid_widget) {
+                nav_text += " #" + std::to_string(nav_editor.source) + ", arrow chooses direction";
+            }
+            if (nav_editor.has_direction) {
+                nav_text += ", click target for ";
+                nav_text += direction_text(nav_editor.direction);
+            }
+            draw_text(renderer, 18.0f, static_cast<float>(height) - 44.0f, nav_text);
         }
         draw_text(renderer, 18.0f, static_cast<float>(height) - 28.0f,
-                  "F1 layout edit, F2 nav overlay, arrows navigate, enter select/edit, esc back, "
+                  "F1 layout edit, F2 nav edit, arrows navigate, enter select/edit, esc back, "
                   "q/e page; binds add fake keys only; status: " +
                       state.save_status);
         SDL_RenderPresent(renderer);

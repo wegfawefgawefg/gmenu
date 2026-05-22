@@ -42,6 +42,20 @@ enum class ActionType : std::uint8_t {
     RemoveButtonBind,
 };
 
+enum class NavDirection : std::uint8_t {
+    Up,
+    Down,
+    Left,
+    Right,
+};
+
+struct NavLinks {
+    WidgetId up = invalid_widget;
+    WidgetId down = invalid_widget;
+    WidgetId left = invalid_widget;
+    WidgetId right = invalid_widget;
+};
+
 struct Action {
     ActionType type = ActionType::None;
     ScreenId screen = invalid_screen;

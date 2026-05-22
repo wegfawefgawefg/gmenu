@@ -5,6 +5,7 @@
 #include "gmenu/types.hpp"
 #include "gmenu/widgets.hpp"
 
+#include <cstdint>
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -32,6 +33,7 @@ struct ScreenDef {
 class Menu {
   public:
     void set_layouts(const std::vector<glayout::Layout>* layout_list);
+    void set_layout_store(const glayout::LayoutStore* store);
     void set_user_data(void* ptr);
 
     void register_screen(ScreenId id, ScreenBuildFn build, const void* data = nullptr);
@@ -52,6 +54,11 @@ class Menu {
     ScreenId current_screen() const;
     void* user_data() const;
 
+    void set_nav_link(ScreenId screen, WidgetId widget, NavDirection direction, WidgetId target);
+    void clear_nav_link(ScreenId screen, WidgetId widget, NavDirection direction);
+    void clear_nav_links(ScreenId screen, WidgetId widget);
+    NavLinks nav_links(ScreenId screen, WidgetId widget) const;
+
   private:
     struct ScreenInstance {
         ScreenId id = invalid_screen;
@@ -59,6 +66,7 @@ class Menu {
 
     const ScreenDef* find_screen(ScreenId id) const;
     Screen build_current_screen(int width, int height, glayout::FormFactor form_factor);
+    void apply_nav_overrides(Screen& screen) const;
     void rebuild_draw_items(const Screen& screen, int width, int height,
                             glayout::FormFactor form_factor);
     void update_focus(const Screen& screen, const Input& input, float dt);
@@ -82,6 +90,8 @@ class Menu {
     std::vector<ScreenId> public_stack;
     std::vector<DrawItem> items;
     const std::vector<glayout::Layout>* layouts = nullptr;
+    const glayout::LayoutStore* layout_store = nullptr;
+    std::unordered_map<std::uint64_t, NavLinks> nav_overrides;
     void* user = nullptr;
 
     WidgetId focused = invalid_widget;

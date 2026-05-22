@@ -49,10 +49,11 @@ void build_settings(gmenu::BuildContext& ctx, gmenu::Screen& out) {
 
 void test_stack_and_commands() {
     gmenu_test::AppState state;
-    std::vector<glayout::Layout> layouts = gmenu_test::make_layouts();
+    glayout::LayoutStore layout_store;
+    layout_store.layouts = gmenu_test::make_layouts();
     gmenu::Menu menu;
     menu.set_user_data(&state);
-    menu.set_layouts(&layouts);
+    menu.set_layout_store(&layout_store);
     g_mark_command = menu.register_command(command_mark);
     menu.register_screen(kMain, build_main);
     menu.register_screen(kSettings, build_settings);
@@ -180,6 +181,36 @@ void test_value_widgets_and_text() {
     assert(!saw_editing);
 }
 
+void test_nav_overrides() {
+    gmenu_test::AppState state;
+    std::vector<glayout::Layout> layouts = gmenu_test::make_layouts();
+    gmenu::Menu menu;
+    menu.set_user_data(&state);
+    menu.set_layouts(&layouts);
+    menu.register_screen(kMain, build_main);
+
+    menu.set_nav_link(kMain, kPlay, gmenu::NavDirection::Down, kPlay);
+    assert(menu.nav_links(kMain, kPlay).down == kPlay);
+    assert(menu.set_root(kMain));
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+
+    bool saw_override = false;
+    for (const gmenu::DrawItem& item : menu.draw_items()) {
+        if (item.id == kPlay) {
+            saw_override = item.nav_down == kPlay;
+        }
+    }
+    assert(saw_override);
+
+    gmenu::Input down;
+    down.down = true;
+    menu.update(down, 0.016f, 800, 600);
+    assert(menu.focus() == kPlay);
+
+    menu.clear_nav_link(kMain, kPlay, gmenu::NavDirection::Down);
+    assert(menu.nav_links(kMain, kPlay).down == gmenu::invalid_widget);
+}
+
 void test_ginput_mapping() {
     ginput::FrameState frame;
     frame.resize_actions(8);
@@ -198,6 +229,7 @@ void test_ginput_mapping() {
 int main() {
     test_stack_and_commands();
     test_value_widgets_and_text();
+    test_nav_overrides();
     test_ginput_mapping();
     return 0;
 }

@@ -55,11 +55,15 @@ The consuming game owns policy.
 
 - `gmenu` runtime can build screens from C++ screen definitions/builders.
 - `gmenu` widgets refer to `glayout` slots by label.
+- `gmenu` can consume a shared `glayout::LayoutStore`.
 - `gmenu` `DrawItem` exposes widget ids, rectangles, state, and explicit nav ids.
-- The SDL demo has a basic F1 `glayout` core edit overlay for one in-memory layout.
-- The SDL demo has an F2 read-only nav overlay.
+- `gmenu` stores nav overrides keyed by screen id and widget id.
+- The SDL demo has an F1 `glayout` core edit overlay for one in-memory layout.
+- The SDL demo has an F2 nav editor that can select a source widget, arm a
+  direction, click a target widget, and clear links.
 
-This is useful for debugging, but it is not the gubsy editor yet.
+This is now enough to prove the library boundary: `glayout` edits slots and
+`gmenu` edits widget navigation. It is not the full gubsy editor surface yet.
 
 ## Next Work
 
@@ -68,28 +72,20 @@ This is useful for debugging, but it is not the gubsy editor yet.
    - Keep it independent from menus and SDL/ImGui where possible.
    - Provide draw data and optional ImGui helpers.
 
-2. Add `gmenu` nav override storage.
-   - Store explicit nav links outside transient rebuilt widgets.
-   - Key by screen id plus widget id or stable widget key.
-   - Apply overrides after a screen is built.
-   - Keep C++ screen builders usable.
+2. Add persistence for `gmenu` nav overrides.
+   - Choose the file format.
+   - Save and load screen/widget/direction/target links.
+   - Report diagnostics for links pointing at missing widgets.
+   - Mark nav data dirty when edited.
 
-3. Add `gmenu` nav editor state.
-   - Select source widget.
-   - Arm up/down/left/right.
-   - Pick target widget.
-   - Clear links.
-   - Draw directional lines and labels.
-   - Mark nav data dirty.
-
-4. Add a combined menu editor surface.
+3. Add a combined menu editor surface.
    - Screen picker.
    - Active layout/variant picker.
    - Layout edit tab backed by `glayout`.
    - Nav edit tab backed by `gmenu`.
    - Widget debug/properties tab.
 
-5. Wire gubsy against the library.
+4. Wire gubsy against the library.
    - Keep gubsy menu builders and policies in gubsy.
    - Use `gmenu` for runtime menu behavior.
    - Use `glayout` data for slot placement.

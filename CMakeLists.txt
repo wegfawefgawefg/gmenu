@@ -43,6 +43,7 @@ add_library(gmenu
     src/input.cpp
     src/input_screens.cpp
     src/menu.cpp
+    src/nav.cpp
     src/screens.cpp
     src/types.cpp
     src/view.cpp

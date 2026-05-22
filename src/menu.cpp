@@ -19,6 +19,12 @@ float clamp_value(float value, float min, float max) {
 
 void Menu::set_layouts(const std::vector<glayout::Layout>* layout_list) {
     layouts = layout_list;
+    layout_store = nullptr;
+}
+
+void Menu::set_layout_store(const glayout::LayoutStore* store) {
+    layout_store = store;
+    layouts = nullptr;
 }
 
 void Menu::set_user_data(void* ptr) {
@@ -168,6 +174,7 @@ Screen Menu::build_current_screen(int width, int height, glayout::FormFactor for
     screen.id = def->id;
     BuildContext ctx{*this, def->id, user, def->data};
     def->build(ctx, screen);
+    apply_nav_overrides(screen);
     return screen;
 }
 

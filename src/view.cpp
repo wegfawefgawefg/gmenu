@@ -45,7 +45,9 @@ void Menu::rebuild_draw_items(const Screen& screen, int width, int height,
                               glayout::FormFactor form_factor) {
     items.clear();
     const glayout::Layout* layout = nullptr;
-    if (layouts) {
+    if (layout_store) {
+        layout = layout_store->find_best(screen.layout_id, width, height, form_factor);
+    } else if (layouts) {
         layout = glayout::find_best_layout(*layouts, screen.layout_id, width, height, form_factor);
     }
 

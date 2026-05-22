@@ -23,6 +23,7 @@ It does not own SDL, rendering, audio, asset loading, or animation systems.
 - typed settings screen builder
 - paged profile list screen builder
 - draw/view items with rects, widget state, labels, values, and style ids
+- explicit nav override storage for editor-authored focus links
 - a small `ginput::FrameState` to `gmenu::Input` adapter
 
 Rendering is done by the host program. The host can draw plain rectangles,
@@ -58,7 +59,7 @@ targets are not already available.
 
 ```cpp
 gmenu::Menu menu;
-menu.set_layouts(&layouts);
+menu.set_layout_store(&layout_store);
 menu.set_user_data(&game);
 
 menu.register_screen(MainMenu, build_main_menu);
@@ -106,6 +107,17 @@ Screen definition objects passed to `register_basic_screen` and
 `DrawItem::style` is only a stable id. The renderer owns textures, fonts,
 animation state, sounds, and transitions.
 
+Explicit navigation links can be authored separately from transient screen
+builders:
+
+```cpp
+menu.set_nav_link(MainMenu, PlayButton, gmenu::NavDirection::Down, SettingsButton);
+menu.clear_nav_link(MainMenu, PlayButton, gmenu::NavDirection::Down);
+```
+
+The links are applied after a screen is built. This keeps generated C++ screens
+usable while allowing editor-authored nav overrides.
+
 Text input is backend-neutral. Put SDL text events, key-repeat backspace events,
 or another backend's text feed into `gmenu::Input::text` and `backspace`.
 
@@ -148,3 +160,11 @@ dispatch a selection command.
 ```
 
 VS Code F5 runs the SDL3 demo when SDL3 is available.
+
+Demo controls:
+
+- `F1`: edit `glayout` slots. Drag rectangles; use `Z`/`Y` for undo/redo,
+  `C`/`V` for copy/paste, and delete/backspace to remove a slot.
+- `F2`: edit `gmenu` navigation. Click a source widget, press an arrow for the
+  direction, then click a target widget. Backspace clears the armed direction;
+  delete clears links for the selected source.
