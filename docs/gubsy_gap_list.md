@@ -71,11 +71,23 @@ These need design before implementation. The old gubsy shape worked, but it
 mixed visual decoration, sub-controls, and behavior into one large widget
 record.
 
+- Avoid super compound widgets.
+  Do not recreate the gubsy pattern where one widget record accumulates badges,
+  tertiary overlays, multiple editable buffers, special hit regions, and
+  per-case behavior flags. That made individual rows work, but it made the core
+  widget model harder to reason about and harder to reuse.
+
 - Sub-widgets or composed rows.
   Gubsy sometimes put multiple editable or clickable regions inside one widget,
   such as auxiliary text input. In `gmenu`, this should probably become multiple
   widgets assigned to multiple layout slots, or an explicit composed-row helper
   that still emits normal widgets.
+
+- Gubsy-specific rows can be rebuilt in gubsy.
+  If gubsy needs a row that looks like one complex control, gubsy can build it
+  from several `gmenu` widgets and render them as one visual row. The core
+  library should only need enough support for focus, nav, hit testing, and
+  events across those sub-widgets.
 
 - Auxiliary text input.
   Do not add `aux_text_buffer` directly to the core widget unless we prove one
