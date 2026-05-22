@@ -126,4 +126,11 @@ if(GMENU_BUILD_TESTS)
     gmenu_apply_warnings(gmenu_tests)
 
     add_test(NAME gmenu_tests COMMAND gmenu_tests)
+
+    add_executable(gmenu_screen_tests tests/screen_tests.cpp)
+    target_link_libraries(gmenu_screen_tests PRIVATE gmenu::gmenu)
+    target_compile_features(gmenu_screen_tests PRIVATE cxx_std_20)
+    gmenu_apply_warnings(gmenu_screen_tests)
+
+    add_test(NAME gmenu_screen_tests COMMAND gmenu_screen_tests)
 endif()

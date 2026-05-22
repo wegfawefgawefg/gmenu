@@ -20,6 +20,8 @@ It does not own SDL, rendering, audio, asset loading, or animation systems.
 - command callbacks
 - data-backed basic, list, and paged-list screen builders
 - `ginput` bind-action list screen builder
+- typed settings screen builder
+- paged profile list screen builder
 - draw/view items with rects, widget state, labels, values, and style ids
 - a small `ginput::FrameState` to `gmenu::Input` adapter
 
@@ -131,6 +133,11 @@ gmenu::register_paged_list_screen(menu, saves);
 actions and bind counts. The edit screen lists current button binds, can remove
 them directly, and dispatches an add/capture command with the action id as
 payload. Actual device capture is still host-owned.
+
+Typed settings and profile screens are data-backed too. Settings items bind
+directly to caller-owned bool, float, option-index, or string values. Profile
+lists page over caller-owned profile entries and can either set a selected id or
+dispatch a selection command.
 
 ## Demo
 

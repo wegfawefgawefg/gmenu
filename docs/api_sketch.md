@@ -100,6 +100,65 @@ gmenu::register_bind_action_edit_screen(menu, edit);
 Selecting an existing bind removes it from the profile. Selecting add runs
 `add_bind` with the edited action id as payload.
 
+## Settings Screen
+
+```cpp
+gmenu::SettingsScreenDef settings;
+settings.id = Settings;
+settings.layout_id = 100;
+settings.title_id = 1;
+settings.title = "Settings";
+settings.default_focus = 10;
+
+gmenu::SettingItem fullscreen;
+fullscreen.id = 10;
+fullscreen.slot = "row0";
+fullscreen.label = "Fullscreen";
+fullscreen.type = gmenu::SettingType::Toggle;
+fullscreen.bool_value = &config.fullscreen;
+settings.items.push_back(fullscreen);
+
+gmenu::SettingItem volume;
+volume.id = 11;
+volume.slot = "row1";
+volume.label = "Volume";
+volume.type = gmenu::SettingType::Slider1D;
+volume.float_value = &config.volume;
+volume.min = 0.0f;
+volume.max = 1.0f;
+volume.step = 0.05f;
+settings.items.push_back(volume);
+
+gmenu::register_settings_screen(menu, settings);
+```
+
+## Profile List
+
+```cpp
+std::vector<gmenu::ProfileEntry> profiles = {
+    {1, "Default", "keyboard"},
+    {2, "Guest", "gamepad"},
+};
+int selected_profile = -1;
+int page = 0;
+
+gmenu::ProfileListScreenDef picker;
+picker.id = Profiles;
+picker.layout_id = 100;
+picker.title_id = 1;
+picker.profiles = &profiles;
+picker.selected_profile_id = &selected_profile;
+picker.page = &page;
+picker.items_per_page = 4;
+picker.item_slots = {"row0", "row1", "row2", "row3"};
+
+gmenu::register_profile_list_screen(menu, picker);
+```
+
+Selecting a profile sets `selected_profile_id`, unless `select_command` is set.
+When `select_command` is set, selecting a profile dispatches the profile id as
+the command payload instead.
+
 ## Update
 
 ```cpp

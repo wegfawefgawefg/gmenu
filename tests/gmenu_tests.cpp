@@ -1,7 +1,7 @@
 #include "gmenu/gmenu.hpp"
+#include "test_common.hpp"
 
 #include <cassert>
-#include <string>
 #include <vector>
 
 namespace {
@@ -12,31 +12,13 @@ constexpr gmenu::WidgetId kPlay = 10;
 constexpr gmenu::WidgetId kSettingsButton = 11;
 constexpr gmenu::WidgetId kBack = 12;
 
-struct AppState {
-    bool command_ran = false;
-    bool fullscreen = false;
-    float volume = 0.5f;
-    int quality = 0;
-    std::string name = "Player";
-};
-
 void command_mark(gmenu::BuildContext& ctx, int payload) {
     (void)payload;
-    auto* state = static_cast<AppState*>(ctx.user);
+    auto* state = static_cast<gmenu_test::AppState*>(ctx.user);
     state->command_ran = true;
 }
 
 gmenu::CommandId g_mark_command = gmenu::invalid_command;
-int g_last_edit_action = -1;
-int g_last_add_bind_action = -1;
-
-void command_edit_action(gmenu::BuildContext&, int payload) {
-    g_last_edit_action = payload;
-}
-
-void command_add_bind(gmenu::BuildContext&, int payload) {
-    g_last_add_bind_action = payload;
-}
 
 void build_main(gmenu::BuildContext& ctx, gmenu::Screen& out) {
     out.id = kMain;
@@ -52,7 +34,7 @@ void build_main(gmenu::BuildContext& ctx, gmenu::Screen& out) {
 }
 
 void build_settings(gmenu::BuildContext& ctx, gmenu::Screen& out) {
-    auto* state = static_cast<AppState*>(ctx.user);
+    auto* state = static_cast<gmenu_test::AppState*>(ctx.user);
     out.id = kSettings;
     out.layout_id = 100;
     out.default_focus = kBack;
@@ -65,27 +47,9 @@ void build_settings(gmenu::BuildContext& ctx, gmenu::Screen& out) {
     out.widgets.push_back(gmenu::button(kBack, "back", "Back", gmenu::Action::pop()));
 }
 
-std::vector<glayout::Layout> make_layouts() {
-    glayout::Layout layout;
-    layout.id = 100;
-    layout.label = "test";
-    layout.width = 800;
-    layout.height = 600;
-    layout.objects.push_back(glayout::Object{1, "play", glayout::Rect{0.1f, 0.1f, 0.8f, 0.1f}});
-    layout.objects.push_back(
-        glayout::Object{2, "settings", glayout::Rect{0.1f, 0.25f, 0.8f, 0.1f}});
-    layout.objects.push_back(glayout::Object{3, "name", glayout::Rect{0.1f, 0.4f, 0.8f, 0.1f}});
-    layout.objects.push_back(glayout::Object{4, "back", glayout::Rect{0.1f, 0.55f, 0.8f, 0.1f}});
-    layout.objects.push_back(glayout::Object{5, "quality", glayout::Rect{0.1f, 0.7f, 0.8f, 0.1f}});
-    layout.objects.push_back(glayout::Object{6, "prev", glayout::Rect{0.1f, 0.82f, 0.1f, 0.08f}});
-    layout.objects.push_back(glayout::Object{7, "next", glayout::Rect{0.8f, 0.82f, 0.1f, 0.08f}});
-    layout.objects.push_back(glayout::Object{8, "page", glayout::Rect{0.35f, 0.82f, 0.3f, 0.08f}});
-    return {layout};
-}
-
 void test_stack_and_commands() {
-    AppState state;
-    std::vector<glayout::Layout> layouts = make_layouts();
+    gmenu_test::AppState state;
+    std::vector<glayout::Layout> layouts = gmenu_test::make_layouts();
     gmenu::Menu menu;
     menu.set_user_data(&state);
     menu.set_layouts(&layouts);
@@ -124,8 +88,8 @@ void test_stack_and_commands() {
 }
 
 void test_value_widgets_and_text() {
-    AppState state;
-    std::vector<glayout::Layout> layouts = make_layouts();
+    gmenu_test::AppState state;
+    std::vector<glayout::Layout> layouts = gmenu_test::make_layouts();
     gmenu::Menu menu;
     menu.set_user_data(&state);
     menu.set_layouts(&layouts);
@@ -204,211 +168,11 @@ void test_ginput_mapping() {
     assert(!input.back);
 }
 
-void test_canned_screens() {
-    AppState state;
-    std::vector<glayout::Layout> layouts = make_layouts();
-
-    gmenu::ListScreenDef main_def;
-    main_def.id = 50;
-    main_def.layout_id = 100;
-    main_def.title_id = 500;
-    main_def.title = "Main";
-    main_def.default_focus = 501;
-    main_def.items.push_back(
-        gmenu::ListItem{501, "play", "Profiles", "Pick a profile", gmenu::Action::push(51)});
-
-    gmenu::BasicScreenDef profile_def;
-    profile_def.id = 51;
-    profile_def.layout_id = 100;
-    profile_def.title_id = 510;
-    profile_def.title = "Profiles";
-    profile_def.default_focus = 511;
-    profile_def.widgets.push_back(gmenu::text_input(511, "name", "Name", state.name, 32));
-    profile_def.widgets.push_back(gmenu::button(512, "back", "Back", gmenu::Action::pop()));
-
-    gmenu::Menu menu;
-    menu.set_user_data(&state);
-    menu.set_layouts(&layouts);
-    gmenu::register_list_screen(menu, main_def);
-    gmenu::register_basic_screen(menu, profile_def);
-
-    assert(menu.set_root(50));
-    menu.update(gmenu::Input{}, 0.016f, 800, 600);
-    assert(menu.draw_items().size() == 2);
-    assert(menu.draw_items()[0].label == "Main");
-    assert(menu.draw_items()[1].secondary == "Pick a profile");
-
-    gmenu::Input select;
-    select.select = true;
-    menu.update(select, 0.016f, 800, 600);
-    assert(menu.current_screen() == 51);
-    assert(menu.draw_items()[0].label == "Profiles");
-}
-
-void test_paged_list_screen() {
-    int page = 0;
-    std::vector<glayout::Layout> layouts = make_layouts();
-
-    gmenu::PagedListScreenDef def;
-    def.id = 60;
-    def.layout_id = 100;
-    def.title_id = 600;
-    def.title = "Saves";
-    def.default_focus = 601;
-    def.page = &page;
-    def.items_per_page = 2;
-    def.item_slots = {"play", "settings"};
-    def.page_label_id = 610;
-    def.prev_id = 611;
-    def.next_id = 612;
-    def.items.push_back(gmenu::ListItem{601, "", "Save 1", "forest", gmenu::Action::none()});
-    def.items.push_back(gmenu::ListItem{602, "", "Save 2", "cave", gmenu::Action::none()});
-    def.items.push_back(gmenu::ListItem{603, "", "Save 3", "castle", gmenu::Action::none()});
-
-    gmenu::Menu menu;
-    menu.set_layouts(&layouts);
-    gmenu::register_paged_list_screen(menu, def);
-    assert(menu.set_root(60));
-
-    menu.update(gmenu::Input{}, 0.016f, 800, 600);
-    assert(menu.draw_items().size() == 6);
-    assert(menu.draw_items()[1].label == "Save 1");
-    assert(menu.draw_items()[2].label == "Save 2");
-    assert(menu.draw_items()[3].label == "Page 1 / 2");
-
-    gmenu::Input down;
-    down.down = true;
-    menu.update(down, 0.016f, 800, 600);
-    menu.update(down, 0.4f, 800, 600);
-
-    gmenu::Input select;
-    select.select = true;
-    menu.update(select, 0.016f, 800, 600);
-
-    assert(page == 1);
-    assert(menu.draw_items()[1].label == "Save 3");
-    assert(menu.draw_items()[2].label == "Page 2 / 2");
-}
-
-void test_bind_action_list_screen() {
-    int page = 0;
-    std::vector<glayout::Layout> layouts = make_layouts();
-    ginput::Schema schema;
-    schema.add_action(0, "Jump", "Gameplay");
-    schema.add_action(1, "Use", "Gameplay");
-    schema.add_action(2, "Menu Up", "Menu");
-
-    ginput::InputProfile profile;
-    profile.id = 1;
-    profile.name = "Keyboard";
-    ginput::add_button_bind(profile, ginput::ButtonBind{100, 0});
-    ginput::add_button_bind(profile, ginput::ButtonBind{101, 0});
-    ginput::add_button_bind(profile, ginput::ButtonBind{102, 1});
-
-    gmenu::Menu menu;
-    menu.set_layouts(&layouts);
-    gmenu::CommandId edit_command = menu.register_command(command_edit_action);
-
-    gmenu::BindActionListScreenDef def;
-    def.id = 70;
-    def.layout_id = 100;
-    def.title_id = 700;
-    def.title = "Binds";
-    def.default_focus = 1000;
-    def.schema = &schema;
-    def.profile = &profile;
-    def.page = &page;
-    def.items_per_page = 2;
-    def.item_slots = {"play", "settings"};
-    def.edit_command = edit_command;
-    def.page_label_id = 710;
-    def.prev_id = 711;
-    def.next_id = 712;
-
-    gmenu::register_bind_action_list_screen(menu, def);
-    assert(menu.set_root(70));
-    menu.update(gmenu::Input{}, 0.016f, 800, 600);
-    assert(menu.draw_items()[1].label == "Jump");
-    assert(menu.draw_items()[1].secondary == "2 button binds");
-    assert(menu.draw_items()[2].label == "Use");
-    assert(menu.draw_items()[2].secondary == "1 button bind");
-
-    g_last_edit_action = -1;
-    gmenu::Input select;
-    select.select = true;
-    menu.update(select, 0.016f, 800, 600);
-    assert(g_last_edit_action == 0);
-}
-
-void test_bind_action_edit_screen() {
-    int page = 0;
-    ginput::ActionId action = 0;
-    std::vector<glayout::Layout> layouts = make_layouts();
-    ginput::Schema schema;
-    schema.add_action(0, "Jump", "Gameplay");
-
-    ginput::InputProfile profile;
-    profile.id = 1;
-    profile.name = "Keyboard";
-    const ginput::EncodedControl jump_a =
-        ginput::encode_button(ginput::DeviceButton{ginput::DeviceKind::Keyboard, 0, 30});
-    const ginput::EncodedControl jump_b =
-        ginput::encode_button(ginput::DeviceButton{ginput::DeviceKind::Keyboard, 0, 31});
-    ginput::add_button_bind(profile, ginput::ButtonBind{jump_a, action});
-    ginput::add_button_bind(profile, ginput::ButtonBind{jump_b, action});
-
-    gmenu::Menu menu;
-    menu.set_layouts(&layouts);
-    gmenu::CommandId add_command = menu.register_command(command_add_bind);
-
-    gmenu::BindActionEditScreenDef def;
-    def.id = 80;
-    def.layout_id = 100;
-    def.title_id = 800;
-    def.default_focus = static_cast<gmenu::WidgetId>(2000 + jump_a);
-    def.schema = &schema;
-    def.profile = &profile;
-    def.action = &action;
-    def.page = &page;
-    def.items_per_page = 2;
-    def.item_slots = {"play", "settings"};
-    def.add_command = add_command;
-    def.add_id = 810;
-    def.add_slot = "quality";
-    def.page_label_id = 811;
-
-    gmenu::register_bind_action_edit_screen(menu, def);
-    assert(menu.set_root(80));
-    menu.update(gmenu::Input{}, 0.016f, 800, 600);
-    assert(menu.draw_items()[0].label == "Edit Jump");
-    assert(ginput::button_binds_for_action(profile, action).size() == 2);
-
-    gmenu::Input select;
-    select.select = true;
-    menu.update(select, 0.016f, 800, 600);
-    assert(ginput::button_binds_for_action(profile, action).size() == 1);
-
-    g_last_add_bind_action = -1;
-    gmenu::Input mouse;
-    mouse.mouse_valid = true;
-    mouse.mouse_x = 100.0f;
-    mouse.mouse_y = 430.0f;
-    mouse.mouse_down = true;
-    menu.update(mouse, 0.016f, 800, 600);
-    mouse.mouse_down = false;
-    menu.update(mouse, 0.016f, 800, 600);
-    assert(g_last_add_bind_action == 0);
-}
-
 } // namespace
 
 int main() {
     test_stack_and_commands();
     test_value_widgets_and_text();
     test_ginput_mapping();
-    test_canned_screens();
-    test_paged_list_screen();
-    test_bind_action_list_screen();
-    test_bind_action_edit_screen();
     return 0;
 }

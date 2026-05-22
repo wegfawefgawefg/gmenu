@@ -134,6 +134,10 @@ navigation falls back to selectable widget order.
 - `ListScreenDef`: title plus button/card list items
 - `PagedListScreenDef`: title plus list items split across pages with optional
   page label and prev/next/back widgets
+- `SettingsScreenDef`: typed settings rows for toggles, sliders, option cycles,
+  and text input
+- `ProfileListScreenDef`: paged profile picker with selected-profile marker or
+  selection command
 - `BindActionListScreenDef`: `ginput` action list with bind counts and an edit
   command payload
 - `BindActionEditScreenDef`: current button binds for one action, direct remove
@@ -149,6 +153,10 @@ allocation or virtual object lifetimes.
 
 Paged-list page state is owned by the caller through an `int*`. Prev/next
 buttons use normal `Action::delta_int` actions.
+
+Settings values and profile lists are caller-owned. `gmenu` mutates simple bound
+values directly, but it does not persist them. Save/load policy belongs to
+`gconfig` or the host game.
 
 The bind screens intentionally do not capture devices. They get the user to the
 action that should be edited, remove existing button binds, and dispatch a host
