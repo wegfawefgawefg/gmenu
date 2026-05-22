@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <iostream>
+#include <span>
 #include <string>
 #include <utility>
 #include <vector>
@@ -53,6 +54,11 @@ struct HeldInput {
     bool down = false;
     bool left = false;
     bool right = false;
+};
+
+struct DemoToggles {
+    bool layout_edit = false;
+    bool nav_overlay = false;
 };
 
 gmenu::CommandId g_quit_command = gmenu::invalid_command;
@@ -254,6 +260,64 @@ void draw_layout_overlay(SDL_Renderer* renderer, const glayout::EditorState& edi
     }
 }
 
+const gmenu::DrawItem* find_draw_item(const std::span<const gmenu::DrawItem>& items,
+                                      gmenu::WidgetId id) {
+    for (const gmenu::DrawItem& item : items) {
+        if (item.id == id) {
+            return &item;
+        }
+    }
+    return nullptr;
+}
+
+SDL_FPoint edge_point(glayout::Rect rect, const char* direction) {
+    if (std::string(direction) == "up") {
+        return SDL_FPoint{rect.x + rect.w * 0.5f, rect.y};
+    }
+    if (std::string(direction) == "down") {
+        return SDL_FPoint{rect.x + rect.w * 0.5f, rect.y + rect.h};
+    }
+    if (std::string(direction) == "left") {
+        return SDL_FPoint{rect.x, rect.y + rect.h * 0.5f};
+    }
+    return SDL_FPoint{rect.x + rect.w, rect.y + rect.h * 0.5f};
+}
+
+void draw_nav_link(SDL_Renderer* renderer, const std::span<const gmenu::DrawItem>& items,
+                   const gmenu::DrawItem& source, gmenu::WidgetId target_id,
+                   const char* direction) {
+    const gmenu::DrawItem* target = find_draw_item(items, target_id);
+    if (!target) {
+        return;
+    }
+
+    SDL_FPoint from = edge_point(source.rect, direction);
+    SDL_FPoint to = edge_point(target->rect, direction);
+    set_color(renderer, 255, 210, 95);
+    SDL_RenderLine(renderer, from.x, from.y, to.x, to.y);
+
+    const float mid_x = (from.x + to.x) * 0.5f;
+    const float mid_y = (from.y + to.y) * 0.5f;
+    draw_text(renderer, mid_x + 4.0f, mid_y + 4.0f, direction);
+}
+
+void draw_nav_overlay(SDL_Renderer* renderer, const std::span<const gmenu::DrawItem>& items) {
+    for (const gmenu::DrawItem& item : items) {
+        if (item.type == gmenu::WidgetType::Label) {
+            continue;
+        }
+
+        set_color(renderer, 255, 210, 95);
+        draw_text(renderer, item.rect.x + 4.0f, item.rect.y + item.rect.h - 16.0f,
+                  "#" + std::to_string(item.id));
+
+        draw_nav_link(renderer, items, item, item.nav_up, "up");
+        draw_nav_link(renderer, items, item, item.nav_down, "down");
+        draw_nav_link(renderer, items, item, item.nav_left, "left");
+        draw_nav_link(renderer, items, item, item.nav_right, "right");
+    }
+}
+
 void draw_item(SDL_Renderer* renderer, const gmenu::DrawItem& item) {
     SDL_FRect rect = to_sdl(item.rect);
 
@@ -303,11 +367,16 @@ void draw_item(SDL_Renderer* renderer, const gmenu::DrawItem& item) {
 }
 
 void apply_key(SDL_Keycode key, bool down, HeldInput& held, gmenu::Input& input,
-               glayout::EditorInput& editor_input, bool& edit_mode) {
+               glayout::EditorInput& editor_input, DemoToggles& toggles) {
     switch (key) {
     case SDLK_F1:
         if (down) {
-            edit_mode = !edit_mode;
+            toggles.layout_edit = !toggles.layout_edit;
+        }
+        break;
+    case SDLK_F2:
+        if (down) {
+            toggles.nav_overlay = !toggles.nav_overlay;
         }
         break;
     case SDLK_UP:
@@ -339,12 +408,12 @@ void apply_key(SDL_Keycode key, bool down, HeldInput& held, gmenu::Input& input,
     case SDLK_BACKSPACE:
         if (down) {
             input.backspace = true;
-            editor_input.key_delete = edit_mode;
+            editor_input.key_delete = toggles.layout_edit;
         }
         break;
     case SDLK_DELETE:
         if (down) {
-            editor_input.key_delete = edit_mode;
+            editor_input.key_delete = toggles.layout_edit;
         }
         break;
     case SDLK_Q:
@@ -359,22 +428,22 @@ void apply_key(SDL_Keycode key, bool down, HeldInput& held, gmenu::Input& input,
         break;
     case SDLK_Z:
         if (down) {
-            editor_input.key_undo = edit_mode;
+            editor_input.key_undo = toggles.layout_edit;
         }
         break;
     case SDLK_Y:
         if (down) {
-            editor_input.key_redo = edit_mode;
+            editor_input.key_redo = toggles.layout_edit;
         }
         break;
     case SDLK_C:
         if (down) {
-            editor_input.key_copy = edit_mode;
+            editor_input.key_copy = toggles.layout_edit;
         }
         break;
     case SDLK_V:
         if (down) {
-            editor_input.key_paste = edit_mode;
+            editor_input.key_paste = toggles.layout_edit;
         }
         break;
     default:
@@ -559,7 +628,7 @@ int main(int, char**) {
 
     HeldInput held;
     glayout::EditorState layout_editor;
-    bool edit_mode = false;
+    DemoToggles toggles;
     bool running = true;
     Uint64 last_ticks = SDL_GetTicks();
 
@@ -572,7 +641,7 @@ int main(int, char**) {
                 running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
                 const bool down = event.type == SDL_EVENT_KEY_DOWN;
-                apply_key(event.key.key, down, held, input, editor_input, edit_mode);
+                apply_key(event.key.key, down, held, input, editor_input, toggles);
                 editor_input.ctrl = (event.key.mod & SDL_KMOD_CTRL) != 0;
                 editor_input.shift = (event.key.mod & SDL_KMOD_SHIFT) != 0;
             } else if (event.type == SDL_EVENT_TEXT_INPUT) {
@@ -591,10 +660,10 @@ int main(int, char**) {
         input.mouse_x = mouse_x;
         input.mouse_y = mouse_y;
         const bool left_mouse_down = (buttons & SDL_BUTTON_LMASK) != 0;
-        input.mouse_down = !edit_mode && left_mouse_down;
+        input.mouse_down = !toggles.layout_edit && left_mouse_down;
         editor_input.mouse_x = mouse_x;
         editor_input.mouse_y = mouse_y;
-        editor_input.left_down = edit_mode && left_mouse_down;
+        editor_input.left_down = toggles.layout_edit && left_mouse_down;
 
         int width = 0;
         int height = 0;
@@ -602,7 +671,7 @@ int main(int, char**) {
         Uint64 now = SDL_GetTicks();
         float dt = static_cast<float>(now - last_ticks) / 1000.0f;
         last_ticks = now;
-        if (edit_mode && !layouts.empty()) {
+        if (toggles.layout_edit && !layouts.empty()) {
             glayout::editor_begin_frame(layout_editor, layouts.front(), editor_input,
                                         glayout::Viewport{
                                             0.0f,
@@ -619,24 +688,27 @@ int main(int, char**) {
 
         set_color(renderer, 16, 22, 29);
         SDL_RenderClear(renderer);
-        if (edit_mode) {
+        if (toggles.layout_edit) {
             draw_grid(renderer, width, height, layout_editor.grid_step);
         }
         for (const gmenu::DrawItem& item : menu.draw_items()) {
             draw_item(renderer, item);
         }
-        if (edit_mode && !layouts.empty()) {
+        if (toggles.layout_edit && !layouts.empty()) {
             draw_layout_overlay(renderer, layout_editor, layouts.front(), width, height);
         }
+        if (toggles.nav_overlay) {
+            draw_nav_overlay(renderer, menu.draw_items());
+        }
         set_color(renderer, 155, 170, 185);
-        if (edit_mode) {
+        if (toggles.layout_edit) {
             draw_text(renderer, 18.0f, static_cast<float>(height) - 44.0f,
                       "F1 layout edit ON: drag rectangles, Z/Y undo/redo, C/V "
                       "copy/paste, delete remove");
         }
         draw_text(renderer, 18.0f, static_cast<float>(height) - 28.0f,
-                  "F1 layout edit, arrows/wasd navigate, enter select/edit, esc back, q/e page; "
-                  "binds add fake keys only; status: " +
+                  "F1 layout edit, F2 nav overlay, arrows navigate, enter select/edit, esc back, "
+                  "q/e page; binds add fake keys only; status: " +
                       state.save_status);
         SDL_RenderPresent(renderer);
     }

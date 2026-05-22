@@ -57,6 +57,10 @@ void Menu::rebuild_draw_items(const Screen& screen, int width, int height,
         item.label = widget.label;
         item.secondary = widget.secondary;
         item.value = widget_value_text(widget);
+        item.nav_up = widget.nav_up;
+        item.nav_down = widget.nav_down;
+        item.nav_left = widget.nav_left;
+        item.nav_right = widget.nav_right;
         item.state.focused = widget.id == focused;
         item.state.hovered = widget.id == hovered;
         item.state.pressed = widget.id == pressed;

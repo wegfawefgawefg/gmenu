@@ -144,6 +144,10 @@ struct DrawItem {
     std::string secondary;
     std::string value;
     VisualState state;
+    WidgetId nav_up = invalid_widget;
+    WidgetId nav_down = invalid_widget;
+    WidgetId nav_left = invalid_widget;
+    WidgetId nav_right = invalid_widget;
 };
 
 } // namespace gmenu
