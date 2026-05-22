@@ -235,7 +235,11 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
         const Widget* clicked = find_widget(screen, pressed);
         if (clicked && hovered == pressed) {
             if (!text_editing) {
-                activate_widget(*clicked);
+                if (clicked->type == WidgetType::Slider1D) {
+                    set_slider_from_mouse(*clicked, input);
+                } else {
+                    activate_widget(*clicked);
+                }
             } else if (clicked->id != editing) {
                 editing = invalid_widget;
                 activate_widget(*clicked);
@@ -361,6 +365,30 @@ void Menu::adjust_widget(const Widget& widget, int direction) {
         }
         *widget.option_index = next;
     }
+}
+
+void Menu::set_slider_from_mouse(const Widget& widget, const Input& input) {
+    if (widget.disabled || widget.type != WidgetType::Slider1D || !widget.float_value ||
+        !input.mouse_valid) {
+        return;
+    }
+
+    glayout::Rect rect;
+    bool found = false;
+    for (const DrawItem& item : items) {
+        if (item.id == widget.id) {
+            rect = item.rect;
+            found = true;
+            break;
+        }
+    }
+    if (!found || rect.w <= 0.0f) {
+        return;
+    }
+
+    float ratio = (input.mouse_x - rect.x) / rect.w;
+    ratio = std::clamp(ratio, 0.0f, 1.0f);
+    *widget.float_value = widget.min + ((widget.max - widget.min) * ratio);
 }
 
 void Menu::execute(const Action& action) {

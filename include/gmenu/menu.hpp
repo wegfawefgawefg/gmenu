@@ -65,6 +65,7 @@ class Menu {
     void update_text_input(const Screen& screen, const Input& input);
     void activate_widget(const Widget& widget);
     void adjust_widget(const Widget& widget, int direction);
+    void set_slider_from_mouse(const Widget& widget, const Input& input);
     void execute(const Action& action);
     void invoke_command(CommandId id, int payload);
     WidgetId first_selectable(const Screen& screen) const;

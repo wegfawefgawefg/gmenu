@@ -1,6 +1,8 @@
+#include "glayout/editor.hpp"
 #include "gmenu/gmenu.hpp"
 
 #include <SDL3/SDL.h>
+#include <algorithm>
 #include <cstdio>
 #include <iostream>
 #include <string>
@@ -206,6 +208,52 @@ void draw_text(SDL_Renderer* renderer, float x, float y, const std::string& text
     SDL_RenderDebugText(renderer, x, y, text.c_str());
 }
 
+void draw_grid(SDL_Renderer* renderer, int width, int height, float step) {
+    if (step <= 0.0f) {
+        return;
+    }
+
+    int index = 1;
+    for (float x = step; x < 1.0f; x += step, ++index) {
+        Uint8 shade = index % 5 == 0 ? 64 : 36;
+        set_color(renderer, shade, static_cast<Uint8>(shade + 7), static_cast<Uint8>(shade + 12));
+        const float screen_x = x * static_cast<float>(width);
+        SDL_RenderLine(renderer, screen_x, 0.0f, screen_x, static_cast<float>(height));
+    }
+
+    index = 1;
+    for (float y = step; y < 1.0f; y += step, ++index) {
+        Uint8 shade = index % 5 == 0 ? 64 : 36;
+        set_color(renderer, shade, static_cast<Uint8>(shade + 7), static_cast<Uint8>(shade + 12));
+        const float screen_y = y * static_cast<float>(height);
+        SDL_RenderLine(renderer, 0.0f, screen_y, static_cast<float>(width), screen_y);
+    }
+}
+
+void draw_layout_overlay(SDL_Renderer* renderer, const glayout::EditorState& editor,
+                         const glayout::Layout& layout, int width, int height) {
+    glayout::Viewport viewport{0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height)};
+    std::vector<glayout::OverlayObject> objects =
+        glayout::editor_collect_overlay_objects(editor, layout, viewport);
+    for (const glayout::OverlayObject& object : objects) {
+        SDL_FRect rect = to_sdl(object.rect);
+        if (object.selected) {
+            set_color(renderer, 255, 95, 82);
+        } else {
+            set_color(renderer, 125, 180, 225);
+        }
+        SDL_RenderRect(renderer, &rect);
+    }
+
+    std::vector<glayout::OverlayHandle> handles =
+        glayout::editor_collect_overlay_handles(editor, layout, viewport);
+    set_color(renderer, 255, 95, 82);
+    for (const glayout::OverlayHandle& handle : handles) {
+        SDL_FRect rect = to_sdl(handle.rect);
+        SDL_RenderFillRect(renderer, &rect);
+    }
+}
+
 void draw_item(SDL_Renderer* renderer, const gmenu::DrawItem& item) {
     SDL_FRect rect = to_sdl(item.rect);
 
@@ -254,14 +302,19 @@ void draw_item(SDL_Renderer* renderer, const gmenu::DrawItem& item) {
     }
 }
 
-void apply_key(SDL_Keycode key, bool down, HeldInput& held, gmenu::Input& input) {
+void apply_key(SDL_Keycode key, bool down, HeldInput& held, gmenu::Input& input,
+               glayout::EditorInput& editor_input, bool& edit_mode) {
     switch (key) {
+    case SDLK_F1:
+        if (down) {
+            edit_mode = !edit_mode;
+        }
+        break;
     case SDLK_UP:
     case SDLK_W:
         held.up = down;
         break;
     case SDLK_DOWN:
-    case SDLK_S:
         held.down = down;
         break;
     case SDLK_LEFT:
@@ -286,6 +339,12 @@ void apply_key(SDL_Keycode key, bool down, HeldInput& held, gmenu::Input& input)
     case SDLK_BACKSPACE:
         if (down) {
             input.backspace = true;
+            editor_input.key_delete = edit_mode;
+        }
+        break;
+    case SDLK_DELETE:
+        if (down) {
+            editor_input.key_delete = edit_mode;
         }
         break;
     case SDLK_Q:
@@ -296,6 +355,26 @@ void apply_key(SDL_Keycode key, bool down, HeldInput& held, gmenu::Input& input)
     case SDLK_E:
         if (down) {
             input.page_next = true;
+        }
+        break;
+    case SDLK_Z:
+        if (down) {
+            editor_input.key_undo = edit_mode;
+        }
+        break;
+    case SDLK_Y:
+        if (down) {
+            editor_input.key_redo = edit_mode;
+        }
+        break;
+    case SDLK_C:
+        if (down) {
+            editor_input.key_copy = edit_mode;
+        }
+        break;
+    case SDLK_V:
+        if (down) {
+            editor_input.key_paste = edit_mode;
         }
         break;
     default:
@@ -479,17 +558,23 @@ int main(int, char**) {
     menu.set_root(kMain);
 
     HeldInput held;
+    glayout::EditorState layout_editor;
+    bool edit_mode = false;
     bool running = true;
     Uint64 last_ticks = SDL_GetTicks();
 
     while (running && !state.quit) {
         gmenu::Input input;
+        glayout::EditorInput editor_input;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
-                apply_key(event.key.key, event.type == SDL_EVENT_KEY_DOWN, held, input);
+                const bool down = event.type == SDL_EVENT_KEY_DOWN;
+                apply_key(event.key.key, down, held, input, editor_input, edit_mode);
+                editor_input.ctrl = (event.key.mod & SDL_KMOD_CTRL) != 0;
+                editor_input.shift = (event.key.mod & SDL_KMOD_SHIFT) != 0;
             } else if (event.type == SDL_EVENT_TEXT_INPUT) {
                 input.text += event.text.text;
             }
@@ -505,7 +590,11 @@ int main(int, char**) {
         SDL_MouseButtonFlags buttons = SDL_GetMouseState(&mouse_x, &mouse_y);
         input.mouse_x = mouse_x;
         input.mouse_y = mouse_y;
-        input.mouse_down = (buttons & SDL_BUTTON_LMASK) != 0;
+        const bool left_mouse_down = (buttons & SDL_BUTTON_LMASK) != 0;
+        input.mouse_down = !edit_mode && left_mouse_down;
+        editor_input.mouse_x = mouse_x;
+        editor_input.mouse_y = mouse_y;
+        editor_input.left_down = edit_mode && left_mouse_down;
 
         int width = 0;
         int height = 0;
@@ -513,17 +602,41 @@ int main(int, char**) {
         Uint64 now = SDL_GetTicks();
         float dt = static_cast<float>(now - last_ticks) / 1000.0f;
         last_ticks = now;
+        if (edit_mode && !layouts.empty()) {
+            glayout::editor_begin_frame(layout_editor, layouts.front(), editor_input,
+                                        glayout::Viewport{
+                                            0.0f,
+                                            0.0f,
+                                            static_cast<float>(width),
+                                            static_cast<float>(height),
+                                        });
+            if (layout_editor.save_requested) {
+                layout_editor.save_requested = false;
+                state.save_status = "layout save requested (demo memory only)";
+            }
+        }
         menu.update(input, dt, width, height);
 
         set_color(renderer, 16, 22, 29);
         SDL_RenderClear(renderer);
+        if (edit_mode) {
+            draw_grid(renderer, width, height, layout_editor.grid_step);
+        }
         for (const gmenu::DrawItem& item : menu.draw_items()) {
             draw_item(renderer, item);
         }
+        if (edit_mode && !layouts.empty()) {
+            draw_layout_overlay(renderer, layout_editor, layouts.front(), width, height);
+        }
         set_color(renderer, 155, 170, 185);
+        if (edit_mode) {
+            draw_text(renderer, 18.0f, static_cast<float>(height) - 44.0f,
+                      "F1 layout edit ON: drag rectangles, Z/Y undo/redo, C/V "
+                      "copy/paste, delete remove");
+        }
         draw_text(renderer, 18.0f, static_cast<float>(height) - 28.0f,
-                  "arrows/wasd navigate, enter select/edit, esc back, q/e page; binds add fake "
-                  "keys only; status: " +
+                  "F1 layout edit, arrows/wasd navigate, enter select/edit, esc back, q/e page; "
+                  "binds add fake keys only; status: " +
                       state.save_status);
         SDL_RenderPresent(renderer);
     }

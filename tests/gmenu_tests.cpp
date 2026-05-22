@@ -132,6 +132,16 @@ void test_value_widgets_and_text() {
     menu.update(right, 0.016f, 800, 600);
     assert(state.volume == 0.75f);
 
+    gmenu::Input slider_mouse;
+    slider_mouse.mouse_valid = true;
+    slider_mouse.mouse_x = 720.0f;
+    slider_mouse.mouse_y = 180.0f;
+    slider_mouse.mouse_down = true;
+    menu.update(slider_mouse, 0.016f, 800, 600);
+    slider_mouse.mouse_down = false;
+    menu.update(slider_mouse, 0.016f, 800, 600);
+    assert(state.volume > 0.95f);
+
     menu.update(down, 0.4f, 800, 600);
     assert(menu.focus() == 23);
     menu.update(right, 0.016f, 800, 600);
