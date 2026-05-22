@@ -53,17 +53,57 @@ These belong in `gmenu` because they affect behavior, not just drawing.
 - Text edit commit behavior.
   Gubsy can commit modified text through widget actions when editing ends.
   `gmenu` edits caller-owned strings but does not yet expose a clean commit
-  event or command hook.
+  action.
 
-- Rejection and movement events.
+- Rejection and movement feedback.
   Gubsy plays focus, confirm, cant, left, and right sounds from menu behavior.
-  `gmenu` should not own audio, but it should emit enough events for the host to
-  play those sounds.
+  `gmenu` should not own audio, but it should report enough feedback for the
+  host to play those sounds.
 
 - Per-widget activation policy.
   Gubsy has `select_enters_text` and `play_select_sound`. `select_enters_text`
-  belongs in `gmenu`; sound policy should probably become host-side event
-  handling rather than a widget field.
+  belongs in `gmenu`; sound policy should be host-side feedback handling rather
+  than a widget field.
+
+## Commands And Feedback
+
+`gmenu` should keep commands and feedback separate.
+
+- Commands are explicit widget actions.
+  Commands are direct callbacks and may perform real app work: push screens,
+  save settings, rename profiles, start gameplay, change engine state, or write
+  files.
+
+- Feedback is generic menu-mechanic notification.
+  Feedback covers things like focus moved, rejected input, activated widget,
+  adjusted left/right, text edit started, and text edit ended. Feedback is for
+  sounds, debug overlays, telemetry, and light UI reactions.
+
+- Feedback should use internal events and optional callbacks.
+  During `Menu::update`, record small internal feedback events. After the update
+  logic has finished, flush those events through optional feedback callbacks.
+  This gives callback ergonomics without firing host code from the middle of
+  focus/nav/text/slider logic.
+
+- Do not route commands through feedback.
+  A profile save, settings write, screen transition, or game action should be a
+  command/action, not a feedback event. Text commit should be an explicit widget
+  action such as `on_commit`; text edit start/end can still be feedback.
+
+Proposed callback shape:
+
+```cpp
+struct FeedbackHooks {
+    void* user = nullptr;
+    void (*focus_moved)(void* user, WidgetId from, WidgetId to) = nullptr;
+    void (*rejected)(void* user, WidgetId widget) = nullptr;
+    void (*activated)(void* user, WidgetId widget) = nullptr;
+    void (*adjusted_left)(void* user, WidgetId widget) = nullptr;
+    void (*adjusted_right)(void* user, WidgetId widget) = nullptr;
+    void (*text_edit_started)(void* user, WidgetId widget) = nullptr;
+    void (*text_edit_ended)(void* user, WidgetId widget) = nullptr;
+};
+```
 
 ## Widget Model Gaps
 
@@ -87,7 +127,7 @@ record.
   If gubsy needs a row that looks like one complex control, gubsy can build it
   from several `gmenu` widgets and render them as one visual row. The core
   library should only need enough support for focus, nav, hit testing, and
-  events across those sub-widgets.
+  feedback across those sub-widgets.
 
 - Auxiliary text input.
   Do not add `aux_text_buffer` directly to the core widget unless we prove one
@@ -118,8 +158,8 @@ the field is common enough to justify being in `DrawItem`.
 - texture, font, animation, and transition data
 
 Current recommendation: keep `gmenu::Widget` and `gmenu::DrawItem` boring.
-Expose ids, rects, state, labels, values, and events. Let the game renderer own
-rich presentation data.
+Expose ids, rects, state, labels, values, and feedback hooks. Let the game
+renderer own rich presentation data.
 
 ## Editor And Debug Gaps
 
@@ -142,9 +182,10 @@ editing.
 
 ## Likely Next Implementation Order
 
-1. Add event output from `Menu::update`.
-   Include focus moved, activated, rejected, adjusted left/right, text committed,
-   page action, and back/pop events.
+1. Add internal feedback events and optional feedback callbacks.
+   Include focus moved, activated, rejected, adjusted left/right, text edit
+   started, and text edit ended. Flush feedback callbacks after `Menu::update`
+   finishes. Keep app mutations in command callbacks.
 
 2. Add mouse focus lock/unlock.
    Keep behavior explicit and easy to debug.
