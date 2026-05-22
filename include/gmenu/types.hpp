@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ginput/profile.hpp"
 #include "glayout/layout.hpp"
 
 #include <cstdint>
@@ -38,6 +39,7 @@ enum class ActionType : std::uint8_t {
     Command,
     SetInt,
     DeltaInt,
+    RemoveButtonBind,
 };
 
 struct Action {
@@ -48,6 +50,9 @@ struct Action {
     int* int_value = nullptr;
     int min = 0;
     int max = 0;
+    ginput::InputProfile* input_profile = nullptr;
+    ginput::ActionId input_action = -1;
+    ginput::EncodedControl encoded_control = 0;
 
     static Action none();
     static Action push(ScreenId id);
@@ -57,6 +62,8 @@ struct Action {
     static Action command_id(CommandId id, int value = 0);
     static Action set_int(int& value, int target);
     static Action delta_int(int& value, int delta, int min_value, int max_value);
+    static Action remove_button_bind(ginput::InputProfile& profile, ginput::ActionId action,
+                                     ginput::EncodedControl encoded_control);
 };
 
 struct Widget {

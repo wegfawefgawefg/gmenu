@@ -389,6 +389,13 @@ void Menu::execute(const Action& action) {
                 std::clamp(*action.int_value + action.payload, min_value, max_value);
         }
         break;
+    case ActionType::RemoveButtonBind:
+        if (action.input_profile) {
+            ginput::remove_button_bind(
+                *action.input_profile,
+                ginput::ButtonBind{action.encoded_control, action.input_action});
+        }
+        break;
     }
 }
 

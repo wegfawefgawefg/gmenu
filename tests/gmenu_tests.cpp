@@ -28,9 +28,14 @@ void command_mark(gmenu::BuildContext& ctx, int payload) {
 
 gmenu::CommandId g_mark_command = gmenu::invalid_command;
 int g_last_edit_action = -1;
+int g_last_add_bind_action = -1;
 
 void command_edit_action(gmenu::BuildContext&, int payload) {
     g_last_edit_action = payload;
+}
+
+void command_add_bind(gmenu::BuildContext&, int payload) {
+    g_last_add_bind_action = payload;
 }
 
 void build_main(gmenu::BuildContext& ctx, gmenu::Screen& out) {
@@ -335,6 +340,66 @@ void test_bind_action_list_screen() {
     assert(g_last_edit_action == 0);
 }
 
+void test_bind_action_edit_screen() {
+    int page = 0;
+    ginput::ActionId action = 0;
+    std::vector<glayout::Layout> layouts = make_layouts();
+    ginput::Schema schema;
+    schema.add_action(0, "Jump", "Gameplay");
+
+    ginput::InputProfile profile;
+    profile.id = 1;
+    profile.name = "Keyboard";
+    const ginput::EncodedControl jump_a =
+        ginput::encode_button(ginput::DeviceButton{ginput::DeviceKind::Keyboard, 0, 30});
+    const ginput::EncodedControl jump_b =
+        ginput::encode_button(ginput::DeviceButton{ginput::DeviceKind::Keyboard, 0, 31});
+    ginput::add_button_bind(profile, ginput::ButtonBind{jump_a, action});
+    ginput::add_button_bind(profile, ginput::ButtonBind{jump_b, action});
+
+    gmenu::Menu menu;
+    menu.set_layouts(&layouts);
+    gmenu::CommandId add_command = menu.register_command(command_add_bind);
+
+    gmenu::BindActionEditScreenDef def;
+    def.id = 80;
+    def.layout_id = 100;
+    def.title_id = 800;
+    def.default_focus = static_cast<gmenu::WidgetId>(2000 + jump_a);
+    def.schema = &schema;
+    def.profile = &profile;
+    def.action = &action;
+    def.page = &page;
+    def.items_per_page = 2;
+    def.item_slots = {"play", "settings"};
+    def.add_command = add_command;
+    def.add_id = 810;
+    def.add_slot = "quality";
+    def.page_label_id = 811;
+
+    gmenu::register_bind_action_edit_screen(menu, def);
+    assert(menu.set_root(80));
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    assert(menu.draw_items()[0].label == "Edit Jump");
+    assert(ginput::button_binds_for_action(profile, action).size() == 2);
+
+    gmenu::Input select;
+    select.select = true;
+    menu.update(select, 0.016f, 800, 600);
+    assert(ginput::button_binds_for_action(profile, action).size() == 1);
+
+    g_last_add_bind_action = -1;
+    gmenu::Input mouse;
+    mouse.mouse_valid = true;
+    mouse.mouse_x = 100.0f;
+    mouse.mouse_y = 430.0f;
+    mouse.mouse_down = true;
+    menu.update(mouse, 0.016f, 800, 600);
+    mouse.mouse_down = false;
+    menu.update(mouse, 0.016f, 800, 600);
+    assert(g_last_add_bind_action == 0);
+}
+
 } // namespace
 
 int main() {
@@ -344,5 +409,6 @@ int main() {
     test_canned_screens();
     test_paged_list_screen();
     test_bind_action_list_screen();
+    test_bind_action_edit_screen();
     return 0;
 }

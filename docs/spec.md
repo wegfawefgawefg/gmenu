@@ -136,6 +136,8 @@ navigation falls back to selectable widget order.
   page label and prev/next/back widgets
 - `BindActionListScreenDef`: `ginput` action list with bind counts and an edit
   command payload
+- `BindActionEditScreenDef`: current button binds for one action, direct remove
+  actions, and an add/capture command payload
 
 These cover main menus, profile pickers, save-slot pickers, simple settings
 pages, and many Gubsy/Splonks-style drill-down pages. More specialized screens
@@ -148,10 +150,10 @@ allocation or virtual object lifetimes.
 Paged-list page state is owned by the caller through an `int*`. Prev/next
 buttons use normal `Action::delta_int` actions.
 
-The bind-action list intentionally does not capture devices. It gets the user to
-the action that should be edited, then dispatches a host command with the
-`ginput::ActionId` as payload. The host can open a capture screen appropriate to
-its backend.
+The bind screens intentionally do not capture devices. They get the user to the
+action that should be edited, remove existing button binds, and dispatch a host
+command with the `ginput::ActionId` as payload when a new bind should be
+captured. The host can open a capture screen appropriate to its backend.
 
 ## Screen Flow
 

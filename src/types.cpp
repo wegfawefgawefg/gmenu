@@ -63,4 +63,14 @@ Action Action::delta_int(int& value, int delta, int min_value, int max_value) {
     return action;
 }
 
+Action Action::remove_button_bind(ginput::InputProfile& profile, ginput::ActionId action_id,
+                                  ginput::EncodedControl control) {
+    Action action;
+    action.type = ActionType::RemoveButtonBind;
+    action.input_profile = &profile;
+    action.input_action = action_id;
+    action.encoded_control = control;
+    return action;
+}
+
 } // namespace gmenu

@@ -127,9 +127,10 @@ saves.items.push_back({30, "", "Save 1", "forest", gmenu::Action::none()});
 gmenu::register_paged_list_screen(menu, saves);
 ```
 
-`gmenu` also includes a `ginput` bind-action overview screen. It lists schema
-actions, shows how many button binds each action has, and dispatches an edit
-command with the action id as payload. Actual device capture is still host-owned.
+`gmenu` also includes `ginput` bind screens. The overview screen lists schema
+actions and bind counts. The edit screen lists current button binds, can remove
+them directly, and dispatches an add/capture command with the action id as
+payload. Actual device capture is still host-owned.
 
 ## Demo
 

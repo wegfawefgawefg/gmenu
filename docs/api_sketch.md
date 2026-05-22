@@ -73,6 +73,33 @@ gmenu::register_bind_action_list_screen(menu, binds);
 Selecting an action runs `edit_bind` with the `ginput::ActionId` as payload.
 Device capture remains host-owned.
 
+The edit screen lists existing button binds and can remove them:
+
+```cpp
+ginput::ActionId edited_action = Jump;
+int edit_page = 0;
+gmenu::CommandId add_bind = menu.register_command(open_capture_screen);
+
+gmenu::BindActionEditScreenDef edit;
+edit.id = BindEdit;
+edit.layout_id = 100;
+edit.title_id = 1;
+edit.schema = &schema;
+edit.profile = &input_profile;
+edit.action = &edited_action;
+edit.page = &edit_page;
+edit.items_per_page = 4;
+edit.item_slots = {"row0", "row1", "row2", "row3"};
+edit.add_id = 20;
+edit.add_slot = "add";
+edit.add_command = add_bind;
+
+gmenu::register_bind_action_edit_screen(menu, edit);
+```
+
+Selecting an existing bind removes it from the profile. Selecting add runs
+`add_bind` with the edited action id as payload.
+
 ## Update
 
 ```cpp
