@@ -24,6 +24,7 @@ behavior.
 - nav override storage, save/load, dirty state, and validation
 - optional ImGui menu metadata and nav editor panels
 - data-backed list, paged-list, profile-list, settings, and binds screens
+- composed-row helper that emits normal widgets and nav links
 
 `glayout` already covers these gubsy layout responsibilities:
 
@@ -120,9 +121,9 @@ record.
 
 - Sub-widgets or composed rows.
   Gubsy sometimes put multiple editable or clickable regions inside one widget,
-  such as auxiliary text input. In `gmenu`, this should probably become multiple
-  widgets assigned to multiple layout slots, or an explicit composed-row helper
-  that still emits normal widgets.
+  such as auxiliary text input. `gmenu` now provides `append_composed_row` for
+  this case. It emits normal widgets assigned to normal layout slots and wires
+  missing horizontal/up/down nav.
 
 - Gubsy-specific rows can be rebuilt in gubsy.
   If gubsy needs a row that looks like one complex control, gubsy can build it
@@ -132,7 +133,7 @@ record.
 
 - Auxiliary text input.
   Do not add `aux_text_buffer` directly to the core widget unless we prove one
-  widget really needs two text edit states. Prefer sub-widgets first.
+  widget really needs two text edit states. Prefer composed rows first.
 
 - Discrete slider options.
   Decide whether this is an option-cycle, a slider with step buttons, or a
@@ -202,8 +203,9 @@ editing.
    implemented. Preserve this behavior while composed rows and richer demos are
    added.
 
-4. Add composed-row helpers.
-   Generate multiple ordinary widgets for rows that need multiple controls.
+4. Keep composed-row helpers covered.
+   `append_composed_row` exists for rows that need multiple controls. Use it in
+   richer demo/gubsy-style screens before adding new widget fields.
 
 5. Improve ImGui nav/menu editor.
    Add screen picker, active widget inspector, and better validation.

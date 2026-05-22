@@ -40,6 +40,8 @@ struct DemoState {
     float volume = 0.5f;
     int quality = 1;
     std::string profile_name = "Default";
+    std::string resolution_width = "1280";
+    std::string resolution_height = "720";
     std::string save_status = "not saved";
     int selected_profile_id = 1;
     int profile_page = 0;
@@ -86,6 +88,7 @@ gmenu::CommandId g_select_profile_command = gmenu::invalid_command;
 gmenu::CommandId g_save_profile_command = gmenu::invalid_command;
 gmenu::CommandId g_edit_bind_command = gmenu::invalid_command;
 gmenu::CommandId g_add_bind_command = gmenu::invalid_command;
+gmenu::CommandId g_apply_resolution_command = gmenu::invalid_command;
 
 void command_quit(gmenu::BuildContext& ctx, int) {
     auto* state = static_cast<DemoState*>(ctx.user);
@@ -134,6 +137,11 @@ void command_add_bind(gmenu::BuildContext& ctx, int payload) {
     ginput::add_button_bind(state->input_profile,
                             ginput::ButtonBind{ginput::encode_button(button), payload});
     state->save_status = "demo added fake key " + std::to_string(button.code);
+}
+
+void command_apply_resolution(gmenu::BuildContext& ctx, int) {
+    auto* state = static_cast<DemoState*>(ctx.user);
+    state->save_status = "resolution " + state->resolution_width + "x" + state->resolution_height;
 }
 
 void init_input_demo(DemoState& state) {
@@ -202,6 +210,64 @@ void build_profile_edit(gmenu::BuildContext& ctx, gmenu::Screen& out) {
     out.widgets.push_back(std::move(back));
 }
 
+void build_settings_demo(gmenu::BuildContext& ctx, gmenu::Screen& out) {
+    auto* state = static_cast<DemoState*>(ctx.user);
+    out.id = kSettings;
+    out.layout_id = 100;
+    out.default_focus = 20;
+
+    gmenu::Widget title = gmenu::label(2, "title", "settings");
+    title.style = kTitleStyle;
+    out.widgets.push_back(std::move(title));
+
+    gmenu::Widget fullscreen = gmenu::toggle(20, "row0", "Fullscreen", state->fullscreen);
+    fullscreen.style = kValueStyle;
+    fullscreen.nav_down = 21;
+    out.widgets.push_back(std::move(fullscreen));
+
+    gmenu::Widget volume = gmenu::slider_1d(21, "row1", "Volume", state->volume, 0.0f, 1.0f, 0.1f);
+    volume.style = kValueStyle;
+    volume.nav_up = 20;
+    volume.nav_down = 22;
+    out.widgets.push_back(std::move(volume));
+
+    gmenu::Widget quality =
+        gmenu::option_cycle(22, "row2", "Quality", state->quality, {"low", "medium", "high"});
+    quality.style = kValueStyle;
+    quality.nav_up = 21;
+    quality.nav_down = 23;
+    out.widgets.push_back(std::move(quality));
+
+    gmenu::Widget profile_name =
+        gmenu::text_input(23, "row3", "Profile Name", state->profile_name, 32);
+    profile_name.style = kValueStyle;
+    profile_name.nav_up = 22;
+    profile_name.nav_down = 26;
+    out.widgets.push_back(std::move(profile_name));
+
+    gmenu::ComposedRowDef resolution;
+    resolution.nav_up = 23;
+    resolution.nav_down = 25;
+    gmenu::Widget width =
+        gmenu::text_input(26, "resolution_w", "Width", state->resolution_width, 5);
+    width.style = kValueStyle;
+    resolution.widgets.push_back(std::move(width));
+    gmenu::Widget height =
+        gmenu::text_input(27, "resolution_h", "Height", state->resolution_height, 5);
+    height.style = kValueStyle;
+    resolution.widgets.push_back(std::move(height));
+    gmenu::Widget apply = gmenu::button(28, "resolution_apply", "Apply",
+                                        gmenu::Action::command_id(g_apply_resolution_command));
+    apply.style = kButtonStyle;
+    resolution.widgets.push_back(std::move(apply));
+    gmenu::append_composed_row(out, std::move(resolution));
+
+    gmenu::Widget back = gmenu::button(25, "back", "Back", gmenu::Action::pop());
+    back.style = kButtonStyle;
+    back.nav_up = 26;
+    out.widgets.push_back(std::move(back));
+}
+
 std::vector<glayout::Layout> make_layouts() {
     glayout::Layout layout;
     layout.id = 100;
@@ -218,6 +284,12 @@ std::vector<glayout::Layout> make_layouts() {
     layout.objects.push_back(glayout::Object{6, "row3", glayout::Rect{0.24f, 0.52f, 0.52f, 0.07f}});
     layout.objects.push_back(glayout::Object{7, "row4", glayout::Rect{0.24f, 0.61f, 0.52f, 0.07f}});
     layout.objects.push_back(glayout::Object{8, "row5", glayout::Rect{0.24f, 0.70f, 0.52f, 0.07f}});
+    layout.objects.push_back(
+        glayout::Object{13, "resolution_w", glayout::Rect{0.24f, 0.70f, 0.16f, 0.07f}});
+    layout.objects.push_back(
+        glayout::Object{14, "resolution_h", glayout::Rect{0.42f, 0.70f, 0.16f, 0.07f}});
+    layout.objects.push_back(
+        glayout::Object{15, "resolution_apply", glayout::Rect{0.60f, 0.70f, 0.16f, 0.07f}});
     layout.objects.push_back(glayout::Object{9, "page", glayout::Rect{0.24f, 0.80f, 0.20f, 0.06f}});
     layout.objects.push_back(
         glayout::Object{10, "prev", glayout::Rect{0.46f, 0.80f, 0.08f, 0.06f}});
@@ -683,6 +755,7 @@ int main(int, char**) {
     g_save_profile_command = menu.register_command(command_save_profile);
     g_edit_bind_command = menu.register_command(command_edit_bind);
     g_add_bind_command = menu.register_command(command_add_bind);
+    g_apply_resolution_command = menu.register_command(command_apply_resolution);
 
     gmenu::ListScreenDef main_def;
     main_def.id = kMain;
@@ -701,51 +774,6 @@ int main(int, char**) {
         gmenu::ListItem{13, "row3", "Input Binds", "", gmenu::Action::push(kBinds), kButtonStyle});
     main_def.items.push_back(gmenu::ListItem{
         14, "row4", "Quit", "", gmenu::Action::command_id(g_quit_command), kButtonStyle});
-
-    gmenu::SettingsScreenDef settings_def;
-    settings_def.id = kSettings;
-    settings_def.layout_id = 100;
-    settings_def.title_id = 2;
-    settings_def.title = "settings";
-    settings_def.title_style = kTitleStyle;
-    settings_def.default_focus = 20;
-    settings_def.item_style = kValueStyle;
-    settings_def.nav_style = kButtonStyle;
-    settings_def.back_id = 25;
-    settings_def.back_slot = "back";
-    gmenu::SettingItem fullscreen;
-    fullscreen.id = 20;
-    fullscreen.slot = "row0";
-    fullscreen.label = "Fullscreen";
-    fullscreen.type = gmenu::SettingType::Toggle;
-    fullscreen.bool_value = &state.fullscreen;
-    settings_def.items.push_back(fullscreen);
-    gmenu::SettingItem volume;
-    volume.id = 21;
-    volume.slot = "row1";
-    volume.label = "Volume";
-    volume.type = gmenu::SettingType::Slider1D;
-    volume.float_value = &state.volume;
-    volume.min = 0.0f;
-    volume.max = 1.0f;
-    volume.step = 0.1f;
-    settings_def.items.push_back(volume);
-    gmenu::SettingItem quality;
-    quality.id = 22;
-    quality.slot = "row2";
-    quality.label = "Quality";
-    quality.type = gmenu::SettingType::OptionCycle;
-    quality.option_index = &state.quality;
-    quality.options = {"low", "medium", "high"};
-    settings_def.items.push_back(quality);
-    gmenu::SettingItem profile_name;
-    profile_name.id = 23;
-    profile_name.slot = "row3";
-    profile_name.label = "Profile Name";
-    profile_name.type = gmenu::SettingType::TextInput;
-    profile_name.text_value = &state.profile_name;
-    profile_name.text_max_len = 32;
-    settings_def.items.push_back(profile_name);
 
     gmenu::ProfileListScreenDef profiles_def;
     profiles_def.id = kProfileList;
@@ -814,7 +842,7 @@ int main(int, char**) {
     bind_edit_def.item_style = kValueStyle;
 
     gmenu::register_list_screen(menu, main_def);
-    gmenu::register_settings_screen(menu, settings_def);
+    menu.register_screen(kSettings, build_settings_demo);
     menu.register_screen(kProfiles, build_profile_edit);
     gmenu::register_profile_list_screen(menu, profiles_def);
     gmenu::register_bind_action_list_screen(menu, binds_def);

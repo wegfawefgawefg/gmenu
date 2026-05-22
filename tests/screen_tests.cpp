@@ -2,6 +2,7 @@
 #include "test_common.hpp"
 
 #include <cassert>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -323,6 +324,59 @@ void test_profile_list_screen() {
     assert(menu.draw_items()[1].label == "Speedrun");
 }
 
+void build_composed_row_screen(gmenu::BuildContext& ctx, gmenu::Screen& out) {
+    auto* state = static_cast<gmenu_test::AppState*>(ctx.user);
+    out.id = 92;
+    out.layout_id = 100;
+    out.default_focus = 920;
+    gmenu::Widget above = gmenu::button(920, "play", "Above", gmenu::Action::none());
+    above.nav_down = 921;
+    out.widgets.push_back(std::move(above));
+
+    gmenu::ComposedRowDef row;
+    row.nav_up = 920;
+    row.nav_down = 924;
+    row.widgets.push_back(gmenu::text_input(921, "prev", "Width", state->name, 8));
+    row.widgets.push_back(gmenu::text_input(922, "page", "Height", state->name, 8));
+    row.widgets.push_back(gmenu::button(923, "next", "Apply", gmenu::Action::none()));
+    gmenu::append_composed_row(out, std::move(row));
+
+    out.widgets.push_back(gmenu::button(924, "back", "Below", gmenu::Action::none()));
+}
+
+void test_composed_row_helper() {
+    gmenu_test::AppState state;
+    std::vector<glayout::Layout> layouts = gmenu_test::make_layouts();
+
+    gmenu::Menu menu;
+    menu.set_user_data(&state);
+    menu.set_layouts(&layouts);
+    menu.register_screen(92, build_composed_row_screen);
+    assert(menu.set_root(92));
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    assert(menu.focus() == 920);
+
+    gmenu::Input down;
+    down.down = true;
+    menu.update(down, 0.016f, 800, 600);
+    assert(menu.focus() == 921);
+
+    gmenu::Input right;
+    right.right = true;
+    menu.update(right, 0.016f, 800, 600);
+    assert(menu.focus() == 922);
+    menu.update(right, 0.4f, 800, 600);
+    assert(menu.focus() == 923);
+
+    gmenu::Input left;
+    left.left = true;
+    menu.update(left, 0.016f, 800, 600);
+    assert(menu.focus() == 922);
+
+    menu.update(down, 0.4f, 800, 600);
+    assert(menu.focus() == 924);
+}
+
 } // namespace
 
 int main() {
@@ -332,5 +386,6 @@ int main() {
     test_bind_action_edit_screen();
     test_settings_screen();
     test_profile_list_screen();
+    test_composed_row_helper();
     return 0;
 }

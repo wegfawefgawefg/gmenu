@@ -3,6 +3,7 @@
 #include "gmenu/input.hpp"
 #include "gmenu/input_screens.hpp"
 #include "gmenu/menu.hpp"
+#include "gmenu/rows.hpp"
 #include "gmenu/screens.hpp"
 #include "gmenu/types.hpp"
 #include "gmenu/widgets.hpp"

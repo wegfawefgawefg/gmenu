@@ -60,6 +60,7 @@ add_library(gmenu
     src/menu.cpp
     src/nav.cpp
     src/nav_io.cpp
+    src/rows.cpp
     src/screens.cpp
     src/types.cpp
     src/view.cpp

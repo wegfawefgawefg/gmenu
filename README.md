@@ -22,6 +22,7 @@ It does not own SDL, rendering, audio, asset loading, or animation systems.
 - `ginput` bind-action list screen builder
 - typed settings screen builder
 - paged profile list screen builder
+- composed-row helper that emits ordinary widgets with authored nav
 - draw/view items with rects, widget state, labels, values, and style ids
 - control hit rects for slider tracks and option-cycle sub-regions
 - explicit nav override storage for editor-authored focus links
@@ -208,6 +209,20 @@ Typed settings and profile screens are data-backed too. Settings items bind
 directly to caller-owned bool, float, option-index, or string values. Profile
 lists page over caller-owned profile entries and can either set a selected id or
 dispatch a selection command.
+
+Rows that need multiple controls should be composed from multiple widgets rather
+than by adding more fields to one widget. `append_composed_row` only wires normal
+widgets together:
+
+```cpp
+gmenu::ComposedRowDef row;
+row.nav_up = VolumeWidget;
+row.nav_down = BackButton;
+row.widgets.push_back(gmenu::text_input(WidthInput, "resolution_w", "Width", width_text, 5));
+row.widgets.push_back(gmenu::text_input(HeightInput, "resolution_h", "Height", height_text, 5));
+row.widgets.push_back(gmenu::button(ApplyResolution, "resolution_apply", "Apply", apply_action));
+gmenu::append_composed_row(screen, std::move(row));
+```
 
 ## Demo
 
