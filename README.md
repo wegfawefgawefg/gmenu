@@ -31,6 +31,12 @@ Rendering is done by the host program. The host can draw plain rectangles,
 texture-backed buttons, animated panels, particle effects, or any other style
 from the same `DrawItem` data.
 
+Gubsy-specific decoration such as badges, tertiary labels, custom slider
+formatting, textures, and animation should normally live in renderer/app data
+keyed by `WidgetId` or `StyleId`, not in the core widget record. When a row needs
+multiple interactive regions, prefer multiple widgets or a composed-row helper
+over adding more special fields to one widget.
+
 The repository includes an SDL3 demo renderer, but SDL3 is not part of the core
 library target.
 

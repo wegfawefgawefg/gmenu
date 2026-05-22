@@ -73,6 +73,8 @@ This is now enough to prove the library boundary: `glayout` edits slots and
 
 ## Next Work
 
+See [gubsy_gap_list.md](gubsy_gap_list.md) for the detailed parity checklist.
+
 1. Finish the reusable `glayout` slot editor.
    - Port the useful gubsy layout-editor behavior into `glayout`.
    - Keep it independent from menus and SDL/ImGui where possible.
