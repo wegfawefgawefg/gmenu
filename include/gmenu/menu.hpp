@@ -1,0 +1,94 @@
+#pragma once
+
+#include "ginput/runtime.hpp"
+#include "gmenu/input.hpp"
+#include "gmenu/types.hpp"
+#include "gmenu/widgets.hpp"
+
+#include <span>
+#include <unordered_map>
+#include <vector>
+
+namespace gmenu {
+
+class Menu;
+
+struct BuildContext {
+    Menu& menu;
+    ScreenId screen = invalid_screen;
+    void* user = nullptr;
+};
+
+using ScreenBuildFn = void (*)(BuildContext& ctx, Screen& out);
+using CommandFn = void (*)(BuildContext& ctx, int payload);
+
+struct ScreenDef {
+    ScreenId id = invalid_screen;
+    ScreenBuildFn build = nullptr;
+};
+
+class Menu {
+  public:
+    void set_layouts(const std::vector<glayout::Layout>* layout_list);
+    void set_user_data(void* ptr);
+
+    void register_screen(ScreenId id, ScreenBuildFn build);
+    CommandId register_command(CommandFn fn);
+
+    bool set_root(ScreenId id);
+    bool push(ScreenId id);
+    bool replace(ScreenId id);
+    void pop();
+    void clear();
+
+    void update(const Input& input, float dt, int width, int height,
+                glayout::FormFactor form_factor = glayout::FormFactor::Desktop);
+
+    std::span<const DrawItem> draw_items() const;
+    std::span<const ScreenId> stack() const;
+    WidgetId focus() const;
+    ScreenId current_screen() const;
+    void* user_data() const;
+
+  private:
+    struct ScreenInstance {
+        ScreenId id = invalid_screen;
+    };
+
+    const ScreenDef* find_screen(ScreenId id) const;
+    Screen build_current_screen(int width, int height, glayout::FormFactor form_factor);
+    void rebuild_draw_items(const Screen& screen, int width, int height,
+                            glayout::FormFactor form_factor);
+    void update_focus(const Screen& screen, const Input& input, float dt);
+    void execute(const Action& action);
+    void invoke_command(CommandId id, int payload);
+    WidgetId first_selectable(const Screen& screen) const;
+    WidgetId resolve_nav(const Screen& screen, WidgetId from, WidgetId explicit_target,
+                         int direction) const;
+    const Widget* find_widget(const Screen& screen, WidgetId id) const;
+    Widget* find_widget(Screen& screen, WidgetId id) const;
+    WidgetId hovered_widget(const Screen& screen, const Input& input) const;
+    bool is_selectable(const Widget& widget) const;
+
+    std::vector<ScreenDef> screens;
+    std::vector<CommandFn> commands;
+    std::vector<ScreenInstance> instances;
+    std::vector<ScreenId> public_stack;
+    std::vector<DrawItem> items;
+    const std::vector<glayout::Layout>* layouts = nullptr;
+    void* user = nullptr;
+
+    WidgetId focused = invalid_widget;
+    WidgetId hovered = invalid_widget;
+    WidgetId pressed = invalid_widget;
+    bool prev_mouse_down = false;
+    ginput::RepeatState repeat_up;
+    ginput::RepeatState repeat_down;
+    ginput::RepeatState repeat_left;
+    ginput::RepeatState repeat_right;
+    std::unordered_map<WidgetId, float> focus_times;
+    std::unordered_map<WidgetId, float> hover_times;
+    std::unordered_map<WidgetId, float> press_times;
+};
+
+} // namespace gmenu

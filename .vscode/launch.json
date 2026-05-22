@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "gmenu demo",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/gmenu_demo",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "build gmenu",
+      "MIMode": "gdb"
+    }
+  ]
+}

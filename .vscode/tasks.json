@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build gmenu",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/build.sh",
+      "group": "build",
+      "problemMatcher": "$gcc"
+    }
+  ]
+}
