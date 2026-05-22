@@ -26,6 +26,7 @@ base menu runtime should not require config storage.
 - screen registration
 - root, push, pop, replace, and clear transitions
 - widget definitions and widget builders
+- data-backed basic and list screen builders
 - focus state
 - directional navigation
 - mouse hover and rectangular click hit testing
@@ -124,6 +125,21 @@ Initial widget set:
 
 Widgets may provide explicit navigation ids. If no explicit target exists,
 navigation falls back to selectable widget order.
+
+## Reusable Screen Builders
+
+`gmenu` includes low-opinion screen builders for common pages:
+
+- `BasicScreenDef`: title plus explicit widgets
+- `ListScreenDef`: title plus button/card list items
+
+These cover main menus, profile pickers, save-slot pickers, simple settings
+pages, and many Gubsy/Splonks-style drill-down pages. More specialized screens
+can still use normal `ScreenBuildFn` functions.
+
+Data-backed screen definitions are stored by pointer. They must outlive the
+`Menu` that registers them. This keeps ownership explicit and avoids hidden
+allocation or virtual object lifetimes.
 
 ## Screen Flow
 

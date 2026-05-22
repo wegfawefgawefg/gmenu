@@ -44,51 +44,6 @@ gmenu::Widget styled(gmenu::Widget widget, gmenu::StyleId style) {
     return widget;
 }
 
-void build_main(gmenu::BuildContext&, gmenu::Screen& out) {
-    out.id = kMain;
-    out.layout_id = 100;
-    out.default_focus = 10;
-    out.widgets.push_back(styled(gmenu::label(1, "title", "gmenu"), kTitleStyle));
-    out.widgets.push_back(
-        styled(gmenu::button(10, "row0", "Play", gmenu::Action::none()), kButtonStyle));
-    out.widgets.push_back(styled(
-        gmenu::button(11, "row1", "Settings", gmenu::Action::push(kSettings)), kButtonStyle));
-    out.widgets.push_back(styled(
-        gmenu::button(12, "row2", "Profiles", gmenu::Action::push(kProfiles)), kButtonStyle));
-    out.widgets.push_back(
-        styled(gmenu::button(13, "row3", "Quit", gmenu::Action::command_id(g_quit_command)),
-               kButtonStyle));
-}
-
-void build_settings(gmenu::BuildContext& ctx, gmenu::Screen& out) {
-    auto* state = static_cast<DemoState*>(ctx.user);
-    out.id = kSettings;
-    out.layout_id = 100;
-    out.default_focus = 20;
-    out.widgets.push_back(styled(gmenu::label(2, "title", "settings"), kTitleStyle));
-    out.widgets.push_back(
-        styled(gmenu::toggle(20, "row0", "Fullscreen", state->fullscreen), kValueStyle));
-    out.widgets.push_back(styled(
-        gmenu::slider_1d(21, "row1", "Volume", state->volume, 0.0f, 1.0f, 0.1f), kValueStyle));
-    out.widgets.push_back(styled(
-        gmenu::option_cycle(22, "row2", "Quality", state->quality, {"low", "medium", "high"}),
-        kValueStyle));
-    out.widgets.push_back(
-        styled(gmenu::button(23, "row3", "Back", gmenu::Action::pop()), kButtonStyle));
-}
-
-void build_profiles(gmenu::BuildContext& ctx, gmenu::Screen& out) {
-    auto* state = static_cast<DemoState*>(ctx.user);
-    out.id = kProfiles;
-    out.layout_id = 100;
-    out.default_focus = 30;
-    out.widgets.push_back(styled(gmenu::label(3, "title", "profiles"), kTitleStyle));
-    out.widgets.push_back(
-        styled(gmenu::text_input(30, "row0", "Name", state->profile_name, 32), kValueStyle));
-    out.widgets.push_back(
-        styled(gmenu::button(31, "row3", "Back", gmenu::Action::pop()), kButtonStyle));
-}
-
 std::vector<glayout::Layout> make_layouts() {
     glayout::Layout layout;
     layout.id = 100;
@@ -226,9 +181,55 @@ int main(int, char**) {
     menu.set_layouts(&layouts);
     menu.set_user_data(&state);
     g_quit_command = menu.register_command(command_quit);
-    menu.register_screen(kMain, build_main);
-    menu.register_screen(kSettings, build_settings);
-    menu.register_screen(kProfiles, build_profiles);
+
+    gmenu::ListScreenDef main_def;
+    main_def.id = kMain;
+    main_def.layout_id = 100;
+    main_def.title_id = 1;
+    main_def.title = "gmenu";
+    main_def.title_style = kTitleStyle;
+    main_def.default_focus = 10;
+    main_def.items.push_back(
+        gmenu::ListItem{10, "row0", "Play", "", gmenu::Action::none(), kButtonStyle});
+    main_def.items.push_back(
+        gmenu::ListItem{11, "row1", "Settings", "", gmenu::Action::push(kSettings), kButtonStyle});
+    main_def.items.push_back(
+        gmenu::ListItem{12, "row2", "Profiles", "", gmenu::Action::push(kProfiles), kButtonStyle});
+    main_def.items.push_back(gmenu::ListItem{
+        13, "row3", "Quit", "", gmenu::Action::command_id(g_quit_command), kButtonStyle});
+
+    gmenu::BasicScreenDef settings_def;
+    settings_def.id = kSettings;
+    settings_def.layout_id = 100;
+    settings_def.title_id = 2;
+    settings_def.title = "settings";
+    settings_def.title_style = kTitleStyle;
+    settings_def.default_focus = 20;
+    settings_def.widgets.push_back(
+        styled(gmenu::toggle(20, "row0", "Fullscreen", state.fullscreen), kValueStyle));
+    settings_def.widgets.push_back(styled(
+        gmenu::slider_1d(21, "row1", "Volume", state.volume, 0.0f, 1.0f, 0.1f), kValueStyle));
+    settings_def.widgets.push_back(
+        styled(gmenu::option_cycle(22, "row2", "Quality", state.quality, {"low", "medium", "high"}),
+               kValueStyle));
+    settings_def.widgets.push_back(
+        styled(gmenu::button(23, "row3", "Back", gmenu::Action::pop()), kButtonStyle));
+
+    gmenu::BasicScreenDef profiles_def;
+    profiles_def.id = kProfiles;
+    profiles_def.layout_id = 100;
+    profiles_def.title_id = 3;
+    profiles_def.title = "profiles";
+    profiles_def.title_style = kTitleStyle;
+    profiles_def.default_focus = 30;
+    profiles_def.widgets.push_back(
+        styled(gmenu::text_input(30, "row0", "Name", state.profile_name, 32), kValueStyle));
+    profiles_def.widgets.push_back(
+        styled(gmenu::button(31, "row3", "Back", gmenu::Action::pop()), kButtonStyle));
+
+    gmenu::register_list_screen(menu, main_def);
+    gmenu::register_basic_screen(menu, settings_def);
+    gmenu::register_basic_screen(menu, profiles_def);
     menu.set_root(kMain);
 
     HeldInput held;

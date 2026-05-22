@@ -191,11 +191,53 @@ void test_ginput_mapping() {
     assert(!input.back);
 }
 
+void test_canned_screens() {
+    AppState state;
+    std::vector<glayout::Layout> layouts = make_layouts();
+
+    gmenu::ListScreenDef main_def;
+    main_def.id = 50;
+    main_def.layout_id = 100;
+    main_def.title_id = 500;
+    main_def.title = "Main";
+    main_def.default_focus = 501;
+    main_def.items.push_back(
+        gmenu::ListItem{501, "play", "Profiles", "Pick a profile", gmenu::Action::push(51)});
+
+    gmenu::BasicScreenDef profile_def;
+    profile_def.id = 51;
+    profile_def.layout_id = 100;
+    profile_def.title_id = 510;
+    profile_def.title = "Profiles";
+    profile_def.default_focus = 511;
+    profile_def.widgets.push_back(gmenu::text_input(511, "name", "Name", state.name, 32));
+    profile_def.widgets.push_back(gmenu::button(512, "back", "Back", gmenu::Action::pop()));
+
+    gmenu::Menu menu;
+    menu.set_user_data(&state);
+    menu.set_layouts(&layouts);
+    gmenu::register_list_screen(menu, main_def);
+    gmenu::register_basic_screen(menu, profile_def);
+
+    assert(menu.set_root(50));
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    assert(menu.draw_items().size() == 2);
+    assert(menu.draw_items()[0].label == "Main");
+    assert(menu.draw_items()[1].secondary == "Pick a profile");
+
+    gmenu::Input select;
+    select.select = true;
+    menu.update(select, 0.016f, 800, 600);
+    assert(menu.current_screen() == 51);
+    assert(menu.draw_items()[0].label == "Profiles");
+}
+
 } // namespace
 
 int main() {
     test_stack_and_commands();
     test_value_widgets_and_text();
     test_ginput_mapping();
+    test_canned_screens();
     return 0;
 }

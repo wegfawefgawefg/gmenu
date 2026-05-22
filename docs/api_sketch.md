@@ -12,6 +12,23 @@ menu.register_screen(Settings, build_settings);
 menu.set_root(MainMenu);
 ```
 
+Or register simple data-backed screens:
+
+```cpp
+gmenu::ListScreenDef main;
+main.id = MainMenu;
+main.layout_id = 100;
+main.title_id = 1;
+main.title = "Main";
+main.default_focus = 10;
+main.items.push_back({10, "play", "Play", "", gmenu::Action::none()});
+main.items.push_back({11, "settings", "Settings", "", gmenu::Action::push(Settings)});
+
+gmenu::register_list_screen(menu, main);
+```
+
+The screen definition must outlive the menu.
+
 ## Update
 
 ```cpp

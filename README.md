@@ -18,6 +18,7 @@ It does not own SDL, rendering, audio, asset loading, or animation systems.
 - label, button, card, toggle, slider, option-cycle, and text-input widget data
 - focus movement and mouse hit testing
 - command callbacks
+- data-backed basic and list screen builders
 - draw/view items with rects, widget state, labels, values, and style ids
 - a small `ginput::FrameState` to `gmenu::Input` adapter
 
@@ -80,6 +81,24 @@ void build_main_menu(gmenu::BuildContext&, gmenu::Screen& out) {
         gmenu::button(SettingsButton, "settings", "Settings", gmenu::Action::push(Settings)));
 }
 ```
+
+Simple screens can be registered as data instead of hand-written builders:
+
+```cpp
+gmenu::ListScreenDef main;
+main.id = MainMenu;
+main.layout_id = 100;
+main.title_id = 1;
+main.title = "Main";
+main.default_focus = 10;
+main.items.push_back({10, "play", "Play", "", gmenu::Action::none()});
+main.items.push_back({11, "settings", "Settings", "", gmenu::Action::push(Settings)});
+
+gmenu::register_list_screen(menu, main);
+```
+
+Screen definition objects passed to `register_basic_screen` and
+`register_list_screen` must outlive the `Menu`.
 
 `DrawItem::style` is only a stable id. The renderer owns textures, fonts,
 animation state, sounds, and transitions.

@@ -17,6 +17,7 @@ struct BuildContext {
     Menu& menu;
     ScreenId screen = invalid_screen;
     void* user = nullptr;
+    const void* screen_data = nullptr;
 };
 
 using ScreenBuildFn = void (*)(BuildContext& ctx, Screen& out);
@@ -25,6 +26,7 @@ using CommandFn = void (*)(BuildContext& ctx, int payload);
 struct ScreenDef {
     ScreenId id = invalid_screen;
     ScreenBuildFn build = nullptr;
+    const void* data = nullptr;
 };
 
 class Menu {
@@ -32,7 +34,7 @@ class Menu {
     void set_layouts(const std::vector<glayout::Layout>* layout_list);
     void set_user_data(void* ptr);
 
-    void register_screen(ScreenId id, ScreenBuildFn build);
+    void register_screen(ScreenId id, ScreenBuildFn build, const void* data = nullptr);
     CommandId register_command(CommandFn fn);
 
     bool set_root(ScreenId id);

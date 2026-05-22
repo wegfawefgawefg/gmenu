@@ -25,17 +25,18 @@ void Menu::set_user_data(void* ptr) {
     user = ptr;
 }
 
-void Menu::register_screen(ScreenId id, ScreenBuildFn build) {
+void Menu::register_screen(ScreenId id, ScreenBuildFn build, const void* data) {
     if (id == invalid_screen || !build) {
         return;
     }
     for (ScreenDef& def : screens) {
         if (def.id == id) {
             def.build = build;
+            def.data = data;
             return;
         }
     }
-    screens.push_back(ScreenDef{id, build});
+    screens.push_back(ScreenDef{id, build, data});
 }
 
 CommandId Menu::register_command(CommandFn fn) {
@@ -168,7 +169,7 @@ Screen Menu::build_current_screen(int width, int height, glayout::FormFactor for
         return screen;
     }
     screen.id = def->id;
-    BuildContext ctx{*this, def->id, user};
+    BuildContext ctx{*this, def->id, user, def->data};
     def->build(ctx, screen);
     return screen;
 }
@@ -386,7 +387,8 @@ void Menu::invoke_command(CommandId id, int payload) {
     if (index >= commands.size() || !commands[index]) {
         return;
     }
-    BuildContext ctx{*this, current_screen(), user};
+    const ScreenDef* def = find_screen(current_screen());
+    BuildContext ctx{*this, current_screen(), user, def ? def->data : nullptr};
     commands[index](ctx, payload);
 }
 
