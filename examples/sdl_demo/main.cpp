@@ -104,7 +104,7 @@ void command_add_bind(gmenu::BuildContext& ctx, int payload) {
     ++state->next_fake_key;
     ginput::add_button_bind(state->input_profile,
                             ginput::ButtonBind{ginput::encode_button(button), payload});
-    state->save_status = "added fake key " + std::to_string(button.code);
+    state->save_status = "demo added fake key " + std::to_string(button.code);
 }
 
 void init_input_demo(DemoState& state) {
@@ -460,6 +460,7 @@ int main(int, char**) {
     bind_edit_def.add_command = g_add_bind_command;
     bind_edit_def.add_id = 61;
     bind_edit_def.add_slot = "row3";
+    bind_edit_def.add_label = "Add Demo Key";
     bind_edit_def.page_label_id = 62;
     bind_edit_def.prev_id = 63;
     bind_edit_def.next_id = 64;
@@ -520,7 +521,8 @@ int main(int, char**) {
         }
         set_color(renderer, 155, 170, 185);
         draw_text(renderer, 18.0f, static_cast<float>(height) - 28.0f,
-                  "arrows/wasd navigate, enter select/edit, esc back, q/e page, status: " +
+                  "arrows/wasd navigate, enter select/edit, esc back, q/e page; binds add fake "
+                  "keys only; status: " +
                       state.save_status);
         SDL_RenderPresent(renderer);
     }

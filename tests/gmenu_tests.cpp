@@ -73,6 +73,12 @@ void test_stack_and_commands() {
     down.down = true;
     menu.update(down, 0.016f, 800, 600);
     assert(menu.focus() == kSettingsButton);
+
+    gmenu::Input right;
+    right.right = true;
+    menu.update(right, 0.016f, 800, 600);
+    assert(menu.focus() == kSettingsButton);
+
     menu.update(select, 0.016f, 800, 600);
     assert(menu.current_screen() == kSettings);
     assert(menu.stack().size() == 2);

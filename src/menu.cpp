@@ -205,23 +205,21 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
             const Widget* widget = find_widget(screen, focused);
             if (widget && widget->on_left.type != ActionType::None) {
                 execute(widget->on_left);
-            } else if (widget) {
+            } else if (widget && (widget->type == WidgetType::Slider1D ||
+                                  widget->type == WidgetType::OptionCycle)) {
                 adjust_widget(*widget, -1);
-                if (widget->type != WidgetType::Slider1D &&
-                    widget->type != WidgetType::OptionCycle) {
-                    focused = resolve_nav(screen, focused, widget->nav_left, -1);
-                }
+            } else if (widget && widget->nav_left != invalid_widget) {
+                focused = resolve_nav(screen, focused, widget->nav_left, -1);
             }
         } else if (right.trigger) {
             const Widget* widget = find_widget(screen, focused);
             if (widget && widget->on_right.type != ActionType::None) {
                 execute(widget->on_right);
-            } else if (widget) {
+            } else if (widget && (widget->type == WidgetType::Slider1D ||
+                                  widget->type == WidgetType::OptionCycle)) {
                 adjust_widget(*widget, 1);
-                if (widget->type != WidgetType::Slider1D &&
-                    widget->type != WidgetType::OptionCycle) {
-                    focused = resolve_nav(screen, focused, widget->nav_right, 1);
-                }
+            } else if (widget && widget->nav_right != invalid_widget) {
+                focused = resolve_nav(screen, focused, widget->nav_right, 1);
             }
         }
     }
