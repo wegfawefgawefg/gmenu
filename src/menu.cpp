@@ -109,6 +109,8 @@ void Menu::clear() {
     pressed = invalid_widget;
     editing = invalid_widget;
     editing_start_value.clear();
+    allow_mouse_focus = true;
+    mouse_focus_locked = false;
     focus_times.clear();
     hover_times.clear();
     press_times.clear();
@@ -196,8 +198,11 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
                                                          : first_selectable(screen);
     }
 
+    ensure_mouse_focus_lock(input);
+    unlock_mouse_focus_if_moved(input);
+
     hovered = hovered_widget(screen, input);
-    if (hovered != invalid_widget && !input.mouse_down) {
+    if (allow_mouse_focus && hovered != invalid_widget && !input.mouse_down) {
         focused = hovered;
     }
 
@@ -214,6 +219,7 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
         if (up.trigger) {
             const Widget* widget = find_widget(screen, focused);
             if (widget) {
+                lock_mouse_focus(input);
                 WidgetId target = resolve_nav(screen, focused, widget->nav_up, -1);
                 if (target != invalid_widget) {
                     focused = target;
@@ -224,6 +230,7 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
         } else if (down.trigger) {
             const Widget* widget = find_widget(screen, focused);
             if (widget) {
+                lock_mouse_focus(input);
                 WidgetId target = resolve_nav(screen, focused, widget->nav_down, 1);
                 if (target != invalid_widget) {
                     focused = target;
@@ -233,6 +240,9 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
             }
         } else if (left.trigger) {
             const Widget* widget = find_widget(screen, focused);
+            if (widget) {
+                lock_mouse_focus(input);
+            }
             if (widget && widget->on_left.type != ActionType::None) {
                 record_widget_feedback(FeedbackType::AdjustedLeft, widget->id);
                 execute(widget->on_left);
@@ -251,6 +261,9 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
             }
         } else if (right.trigger) {
             const Widget* widget = find_widget(screen, focused);
+            if (widget) {
+                lock_mouse_focus(input);
+            }
             if (widget && widget->on_right.type != ActionType::None) {
                 record_widget_feedback(FeedbackType::AdjustedRight, widget->id);
                 execute(widget->on_right);
@@ -273,6 +286,9 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
     const bool mouse_clicked = input.mouse_valid && input.mouse_down && !prev_mouse_down;
     const bool mouse_released = input.mouse_valid && !input.mouse_down && prev_mouse_down;
     prev_mouse_down = input.mouse_down;
+    if (mouse_clicked) {
+        unlock_mouse_focus_now();
+    }
     if (mouse_clicked && hovered != invalid_widget) {
         focused = hovered;
         pressed = hovered;
@@ -597,6 +613,38 @@ bool Menu::is_selectable(const Widget& widget) const {
         return false;
     }
     return widget.type != WidgetType::Label;
+}
+
+void Menu::lock_mouse_focus(const Input& input) {
+    allow_mouse_focus = false;
+    if (!input.mouse_valid) {
+        mouse_focus_locked = false;
+        return;
+    }
+    mouse_focus_locked = true;
+    mouse_focus_lock_x = input.mouse_x;
+    mouse_focus_lock_y = input.mouse_y;
+}
+
+void Menu::ensure_mouse_focus_lock(const Input& input) {
+    if (allow_mouse_focus || mouse_focus_locked || !input.mouse_valid) {
+        return;
+    }
+    lock_mouse_focus(input);
+}
+
+void Menu::unlock_mouse_focus_if_moved(const Input& input) {
+    if (!mouse_focus_locked || !input.mouse_valid) {
+        return;
+    }
+    if (input.mouse_x != mouse_focus_lock_x || input.mouse_y != mouse_focus_lock_y) {
+        unlock_mouse_focus_now();
+    }
+}
+
+void Menu::unlock_mouse_focus_now() {
+    allow_mouse_focus = true;
+    mouse_focus_locked = false;
 }
 
 void Menu::record_feedback(FeedbackEvent event) {

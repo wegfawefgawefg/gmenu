@@ -18,6 +18,7 @@ behavior.
 - internal feedback events flushed to optional callbacks after update
 - page previous and page next inputs
 - mouse hover, click, and basic slider mouse setting
+- mouse focus lock/unlock after keyboard/gamepad navigation
 - visual state for focus, hover, press, disabled, and text editing
 - draw items with rects, labels, values, style ids, and nav metadata
 - nav override storage, save/load, dirty state, and validation
@@ -38,9 +39,9 @@ behavior.
 These belong in `gmenu` because they affect behavior, not just drawing.
 
 - Mouse focus lock/unlock behavior.
-  Gubsy avoids immediate focus changes from stale mouse position while keyboard
-  or gamepad navigation is being used. `gmenu` currently focuses hovered widgets
-  whenever the mouse is over them and not pressed.
+  `gmenu` now avoids immediate focus changes from stale mouse position while
+  keyboard or gamepad navigation is being used. Hover focus unlocks when the
+  mouse moves or clicks.
 
 - Rich slider mouse behavior.
   Gubsy separates track drag preview from commit, supports dragging while held,
@@ -187,8 +188,9 @@ editing.
    left/right, text edit started, and text edit ended. Keep app mutations in
    command callbacks.
 
-2. Add mouse focus lock/unlock.
-   Keep behavior explicit and easy to debug.
+2. Keep mouse focus lock/unlock covered while changing input behavior.
+   This is implemented for keyboard/gamepad navigation and should remain covered
+   as richer pointer interactions are added.
 
 3. Rework slider and option-cycle interaction.
    Preserve simple use, but expose enough draw/event state for gubsy-style

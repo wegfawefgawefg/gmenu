@@ -102,6 +102,10 @@ class Menu {
     Widget* find_widget(Screen& screen, WidgetId id) const;
     WidgetId hovered_widget(const Screen& screen, const Input& input) const;
     bool is_selectable(const Widget& widget) const;
+    void lock_mouse_focus(const Input& input);
+    void ensure_mouse_focus_lock(const Input& input);
+    void unlock_mouse_focus_if_moved(const Input& input);
+    void unlock_mouse_focus_now();
     void record_feedback(FeedbackEvent event);
     void record_widget_feedback(FeedbackType type, WidgetId widget);
     void flush_feedback();
@@ -126,6 +130,10 @@ class Menu {
     WidgetId editing = invalid_widget;
     std::string editing_start_value;
     bool prev_mouse_down = false;
+    bool allow_mouse_focus = true;
+    bool mouse_focus_locked = false;
+    float mouse_focus_lock_x = 0.0f;
+    float mouse_focus_lock_y = 0.0f;
     ginput::RepeatState repeat_up;
     ginput::RepeatState repeat_down;
     ginput::RepeatState repeat_left;

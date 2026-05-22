@@ -331,6 +331,39 @@ void test_feedback_hooks() {
     assert(g_commit_count == 1);
 }
 
+void test_mouse_focus_lock() {
+    gmenu_test::AppState state;
+    std::vector<glayout::Layout> layouts = gmenu_test::make_layouts();
+    gmenu::Menu menu;
+    menu.set_user_data(&state);
+    menu.set_layouts(&layouts);
+    menu.register_screen(kMain, build_main);
+
+    assert(menu.set_root(kMain));
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    assert(menu.focus() == kPlay);
+
+    gmenu::Input mouse_over_settings;
+    mouse_over_settings.mouse_valid = true;
+    mouse_over_settings.mouse_x = 90.0f;
+    mouse_over_settings.mouse_y = 170.0f;
+    menu.update(mouse_over_settings, 0.016f, 800, 600);
+    assert(menu.focus() == kSettingsButton);
+
+    gmenu::Input keyboard_up = mouse_over_settings;
+    keyboard_up.up = true;
+    menu.update(keyboard_up, 0.016f, 800, 600);
+    assert(menu.focus() == kPlay);
+
+    menu.update(mouse_over_settings, 0.016f, 800, 600);
+    assert(menu.focus() == kPlay);
+
+    gmenu::Input moved_mouse = mouse_over_settings;
+    moved_mouse.mouse_x += 1.0f;
+    menu.update(moved_mouse, 0.016f, 800, 600);
+    assert(menu.focus() == kSettingsButton);
+}
+
 void test_nav_overrides() {
     gmenu_test::AppState state;
     std::vector<glayout::Layout> layouts = gmenu_test::make_layouts();
@@ -409,6 +442,7 @@ int main() {
     test_stack_and_commands();
     test_value_widgets_and_text();
     test_feedback_hooks();
+    test_mouse_focus_lock();
     test_nav_overrides();
     test_nav_persistence();
     test_ginput_mapping();
