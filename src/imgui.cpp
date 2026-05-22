@@ -60,6 +60,68 @@ bool direction_combo(NavDirection& direction) {
     return changed;
 }
 
+const DrawItem* find_item(std::span<const DrawItem> items, WidgetId id) {
+    for (const DrawItem& item : items) {
+        if (item.id == id) {
+            return &item;
+        }
+    }
+    return nullptr;
+}
+
+const char* widget_type_label(WidgetType type) {
+    switch (type) {
+    case WidgetType::Label:
+        return "label";
+    case WidgetType::Button:
+        return "button";
+    case WidgetType::Card:
+        return "card";
+    case WidgetType::Toggle:
+        return "toggle";
+    case WidgetType::Slider1D:
+        return "slider";
+    case WidgetType::OptionCycle:
+        return "option";
+    case WidgetType::TextInput:
+        return "text";
+    }
+    return "unknown";
+}
+
+void render_link_target(const char* label, WidgetId target, NavSource source) {
+    ImGui::Text("%s: #%u", label, target);
+    ImGui::SameLine();
+    const char* source_text = "none";
+    if (source == NavSource::Explicit) {
+        source_text = "explicit";
+    } else if (source == NavSource::Override) {
+        source_text = "override";
+    }
+    ImGui::TextDisabled("(%s)", source_text);
+}
+
+void render_selected_widget(NavEditorState& editor, std::span<const DrawItem> items) {
+    const DrawItem* item = find_item(items, editor.source);
+    if (!item) {
+        ImGui::TextUnformatted("No source widget selected.");
+        return;
+    }
+
+    ImGui::Text("Widget #%u", item->id);
+    ImGui::Text("Type: %s", widget_type_label(item->type));
+    ImGui::Text("Label: %s", item->label.c_str());
+    ImGui::Text("Rect: %.0f %.0f %.0f %.0f", item->rect.x, item->rect.y, item->rect.w,
+                item->rect.h);
+    if (!item->value.empty()) {
+        ImGui::Text("Value: %s", item->value.c_str());
+    }
+    render_link_target("Up", item->nav_up, item->nav_up_source);
+    render_link_target("Down", item->nav_down, item->nav_down_source);
+    render_link_target("Left", item->nav_left, item->nav_left_source);
+    render_link_target("Right", item->nav_right, item->nav_right_source);
+}
+
 } // namespace
 
 bool render_nav_editor(Menu& menu, NavEditorState& editor, ScreenId screen,
@@ -86,6 +148,9 @@ bool render_nav_editor(Menu& menu, NavEditorState& editor, ScreenId screen,
     selectable_widget_combo("Source", editor.source, items);
     direction_combo(editor.direction);
     selectable_widget_combo("Target", editor.target, items);
+
+    ImGui::SeparatorText("Selected Widget");
+    render_selected_widget(editor, items);
 
     const bool can_set = screen != invalid_screen && editor.source != invalid_widget &&
                          editor.target != invalid_widget;
@@ -129,9 +194,14 @@ bool render_nav_editor(Menu& menu, NavEditorState& editor, ScreenId screen,
             if (item.type == WidgetType::Label) {
                 continue;
             }
+            ImGui::PushID(static_cast<int>(item.id));
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("#%u", item.id);
+            std::string widget_label = "#" + std::to_string(item.id);
+            if (ImGui::Selectable(widget_label.c_str(), editor.source == item.id,
+                                  ImGuiSelectableFlags_SpanAllColumns)) {
+                editor.source = item.id;
+            }
             ImGui::TableSetColumnIndex(1);
             ImGui::Text("#%u", item.nav_up);
             ImGui::TableSetColumnIndex(2);
@@ -142,6 +212,7 @@ bool render_nav_editor(Menu& menu, NavEditorState& editor, ScreenId screen,
             ImGui::Text("#%u", item.nav_right);
             ImGui::TableSetColumnIndex(5);
             ImGui::TextUnformatted(item.label.c_str());
+            ImGui::PopID();
         }
         ImGui::EndTable();
     }
@@ -158,10 +229,32 @@ bool render_nav_editor(Menu& menu, NavEditorState& editor, ScreenId screen,
     }
 
     if (!issues.empty() && ImGui::CollapsingHeader("Validation", ImGuiTreeNodeFlags_DefaultOpen)) {
-        for (const NavValidationIssue& issue : issues) {
-            ImGui::BulletText("screen %u widget %u target %u: %s", issue.screen, issue.widget,
-                              issue.target, issue.message.c_str());
+        if (ImGui::BeginTable("nav_validation", 5,
+                              ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders)) {
+            ImGui::TableSetupColumn("Screen");
+            ImGui::TableSetupColumn("Widget");
+            ImGui::TableSetupColumn("Direction");
+            ImGui::TableSetupColumn("Target");
+            ImGui::TableSetupColumn("Message");
+            ImGui::TableHeadersRow();
+            for (const NavValidationIssue& issue : issues) {
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%u", issue.screen);
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%u", issue.widget);
+                ImGui::TableSetColumnIndex(2);
+                ImGui::TextUnformatted(direction_label(issue.direction));
+                ImGui::TableSetColumnIndex(3);
+                ImGui::Text("%u", issue.target);
+                ImGui::TableSetColumnIndex(4);
+                ImGui::TextUnformatted(issue.message.c_str());
+            }
+            ImGui::EndTable();
         }
+    } else if (issues.empty()) {
+        ImGui::SeparatorText("Validation");
+        ImGui::TextUnformatted("No nav validation issues for the current screen.");
     }
 
     ImGui::End();

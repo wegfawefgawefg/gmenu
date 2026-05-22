@@ -174,8 +174,9 @@ These are not blockers for runtime menus, but they matter for gubsy-style live
 editing.
 
 - The ImGui nav editor is functional but not yet as comfortable as gubsy's
-  editor. It needs better screen selection, selected-widget inspection, and
-  clearer validation display.
+  editor. It now has selected-widget inspection, selectable effective-nav rows,
+  and clearer validation tables. It still needs better screen selection once
+  `Menu` exposes enough registered-screen metadata to do that cleanly.
 
 - The combined menu editor should present layout editing and nav editing as one
   tool, while still delegating rectangle edits to `glayout`.
@@ -207,8 +208,9 @@ editing.
    `append_composed_row` exists for rows that need multiple controls. Use it in
    richer demo/gubsy-style screens before adding new widget fields.
 
-5. Improve ImGui nav/menu editor.
-   Add screen picker, active widget inspector, and better validation.
+5. Keep improving ImGui nav/menu editor.
+   Selected-widget inspection and clearer validation are implemented. Add a
+   proper screen picker after exposing registered-screen metadata from `Menu`.
 
 6. Wire a gubsy-like demo screen.
    Prove profile, settings, binds, and mixed sub-widget rows can be rebuilt
