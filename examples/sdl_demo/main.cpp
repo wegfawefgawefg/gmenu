@@ -13,6 +13,9 @@ constexpr gmenu::ScreenId kMain = 1;
 constexpr gmenu::ScreenId kSettings = 2;
 constexpr gmenu::ScreenId kProfiles = 3;
 
+constexpr int kWindowWidth = 1280;
+constexpr int kWindowHeight = 720;
+
 constexpr gmenu::StyleId kTitleStyle = 10;
 constexpr gmenu::StyleId kButtonStyle = 20;
 constexpr gmenu::StyleId kValueStyle = 30;
@@ -155,12 +158,14 @@ int main(int, char**) {
         return 1;
     }
 
-    SDL_Window* window = SDL_CreateWindow("gmenu SDL demo", 1280, 720, SDL_WINDOW_RESIZABLE);
+    SDL_Window* window = SDL_CreateWindow("gmenu SDL demo", kWindowWidth, kWindowHeight,
+                                          SDL_WINDOW_RESIZABLE | SDL_WINDOW_UTILITY);
     if (!window) {
         std::cerr << "SDL_CreateWindow failed: " << SDL_GetError() << "\n";
         SDL_Quit();
         return 1;
     }
+    SDL_SetWindowPosition(window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
 
     SDL_Renderer* renderer = SDL_CreateRenderer(window, nullptr);
     if (!renderer) {
