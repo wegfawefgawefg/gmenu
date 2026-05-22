@@ -25,6 +25,9 @@ Rendering is done by the host program. The host can draw plain rectangles,
 texture-backed buttons, animated panels, particle effects, or any other style
 from the same `DrawItem` data.
 
+The repository includes an SDL3 demo renderer, but SDL3 is not part of the core
+library target.
+
 ## Add To A Project
 
 Place `gmenu`, `glayout`, `ginput`, and `gsexp` next to each other:
@@ -89,6 +92,7 @@ or another backend's text feed into `gmenu::Input::text` and `backspace`.
 ```sh
 ./scripts/build.sh
 ./scripts/run.sh
+./scripts/run_sdl_demo.sh
 ```
 
-VS Code F5 runs the `gmenu demo` launch configuration.
+VS Code F5 runs the SDL3 demo when SDL3 is available.

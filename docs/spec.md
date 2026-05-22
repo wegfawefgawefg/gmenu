@@ -67,6 +67,9 @@ The host renders `DrawItem` however it wants.
 The renderer owns visual interpretation. A focused button can be a plain color,
 sprite swap, fade, slide, neon flicker, or anything else.
 
+The repo may contain renderer demos. Those demos must not add renderer
+dependencies to `gmenu::gmenu`.
+
 ## Styling
 
 Core style data should stay minimal. `StyleId` is the stable hook between menu

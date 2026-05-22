@@ -33,6 +33,9 @@ for (const gmenu::DrawItem& item : menu.draw_items()) {
 
 The renderer owns assets, animation state, fonts, sounds, and transitions.
 
+The SDL3 demo renderer in `examples/sdl_demo` is an example of this loop. It is
+not required by consumers of `gmenu::gmenu`.
+
 ## Screen Builder
 
 ```cpp

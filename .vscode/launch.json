@@ -2,10 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "gmenu demo",
+      "name": "gmenu SDL demo",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/gmenu_demo",
+      "program": "${workspaceFolder}/build/gmenu_sdl_demo",
       "args": [],
       "cwd": "${workspaceFolder}",
       "preLaunchTask": "build gmenu",
