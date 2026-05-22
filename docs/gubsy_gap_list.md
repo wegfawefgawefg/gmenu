@@ -185,8 +185,9 @@ editing.
   has a combined editor window with menu/layout/nav tabs; the layout tab opens
   the `glayout` editor and the nav tab embeds the `gmenu` nav editor panel.
 
-- Layout persistence is library-ready but demo-level. A real gubsy integration
-  needs host-owned save paths and save commands wired through cleanly.
+- Layout persistence is library-ready and demonstrated with host-owned paths.
+  The SDL demo loads/saves `gmenu_layouts_demo.lisp` through `glayout` and
+  loads/saves `gmenu_nav_demo.lisp` through `gmenu`.
 
 - Binds debug belongs in `ginput` or the host app, not in `gmenu`.
 

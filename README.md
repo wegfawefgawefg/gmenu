@@ -260,3 +260,6 @@ Demo controls:
   `gmenu_nav_demo.lisp`; `L` reloads them.
 - `F10`: toggle ImGui debug windows in ImGui-enabled demo builds. `F9` toggles
   the small debug bar.
+
+The demo persists edited layouts to `gmenu_layouts_demo.lisp` when the layout
+editor requests save.

@@ -745,12 +745,18 @@ int main(int, char**) {
 
     DemoState state;
     init_input_demo(state);
+    const std::filesystem::path layout_path = "gmenu_layouts_demo.lisp";
+    const std::filesystem::path nav_path = "gmenu_nav_demo.lisp";
     glayout::LayoutStore layout_store;
-    layout_store.layouts = make_layouts();
+    glayout::ParseResult loaded_layouts = layout_store.load_file(layout_path);
+    if (loaded_layouts.ok && !layout_store.layouts.empty()) {
+        state.save_status = "loaded demo layouts";
+    } else {
+        layout_store.layouts = make_layouts();
+    }
     gmenu::Menu menu;
     menu.set_layout_store(&layout_store);
     menu.set_user_data(&state);
-    const std::filesystem::path nav_path = "gmenu_nav_demo.lisp";
     if (menu.load_nav_file(nav_path)) {
         state.save_status = "loaded nav overrides";
     }
@@ -964,8 +970,13 @@ int main(int, char**) {
                                             static_cast<float>(height),
                                         });
             if (layout_editor.save_requested) {
-                layout_editor.save_requested = false;
-                state.save_status = "layout save requested (demo memory only)";
+                if (layout_store.save_file(layout_path)) {
+                    glayout::editor_mark_saved(layout_editor);
+                    state.save_status = "saved demo layouts";
+                } else {
+                    layout_editor.save_requested = false;
+                    state.save_status = "failed to save demo layouts";
+                }
             }
         }
         menu.update(input, dt, width, height);
