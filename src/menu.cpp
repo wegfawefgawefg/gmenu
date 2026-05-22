@@ -110,7 +110,6 @@ void Menu::update(const Input& input, float dt, int width, int height,
         return;
     }
 
-    const ScreenId before = current_screen();
     Screen screen = build_current_screen(width, height, form_factor);
     rebuild_draw_items(screen, width, height, form_factor);
     update_focus(screen, input, dt);
@@ -118,9 +117,7 @@ void Menu::update(const Input& input, float dt, int width, int height,
         items.clear();
         return;
     }
-    if (current_screen() != before) {
-        screen = build_current_screen(width, height, form_factor);
-    }
+    screen = build_current_screen(width, height, form_factor);
     rebuild_draw_items(screen, width, height, form_factor);
 }
 
@@ -375,6 +372,22 @@ void Menu::execute(const Action& action) {
         break;
     case ActionType::Command:
         invoke_command(action.command, action.payload);
+        break;
+    case ActionType::SetInt:
+        if (action.int_value) {
+            *action.int_value = action.payload;
+        }
+        break;
+    case ActionType::DeltaInt:
+        if (action.int_value) {
+            int min_value = action.min;
+            int max_value = action.max;
+            if (min_value > max_value) {
+                std::swap(min_value, max_value);
+            }
+            *action.int_value =
+                std::clamp(*action.int_value + action.payload, min_value, max_value);
+        }
         break;
     }
 }

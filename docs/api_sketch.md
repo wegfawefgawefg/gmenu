@@ -29,6 +29,26 @@ gmenu::register_list_screen(menu, main);
 
 The screen definition must outlive the menu.
 
+Paged lists use caller-owned page state:
+
+```cpp
+int page = 0;
+gmenu::PagedListScreenDef profiles;
+profiles.id = Profiles;
+profiles.layout_id = 100;
+profiles.title_id = 1;
+profiles.title = "Profiles";
+profiles.page = &page;
+profiles.items_per_page = 4;
+profiles.item_slots = {"row0", "row1", "row2", "row3"};
+profiles.prev_id = 20;
+profiles.next_id = 21;
+profiles.page_label_id = 22;
+profiles.items.push_back({30, "", "Default", "last used", gmenu::Action::none()});
+
+gmenu::register_paged_list_screen(menu, profiles);
+```
+
 ## Update
 
 ```cpp

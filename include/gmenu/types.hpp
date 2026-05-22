@@ -36,6 +36,8 @@ enum class ActionType : std::uint8_t {
     Replace,
     SetRoot,
     Command,
+    SetInt,
+    DeltaInt,
 };
 
 struct Action {
@@ -43,6 +45,9 @@ struct Action {
     ScreenId screen = invalid_screen;
     CommandId command = invalid_command;
     int payload = 0;
+    int* int_value = nullptr;
+    int min = 0;
+    int max = 0;
 
     static Action none();
     static Action push(ScreenId id);
@@ -50,6 +55,8 @@ struct Action {
     static Action replace(ScreenId id);
     static Action set_root(ScreenId id);
     static Action command_id(CommandId id, int value = 0);
+    static Action set_int(int& value, int target);
+    static Action delta_int(int& value, int delta, int min_value, int max_value);
 };
 
 struct Widget {

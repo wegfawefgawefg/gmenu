@@ -18,7 +18,7 @@ It does not own SDL, rendering, audio, asset loading, or animation systems.
 - label, button, card, toggle, slider, option-cycle, and text-input widget data
 - focus movement and mouse hit testing
 - command callbacks
-- data-backed basic and list screen builders
+- data-backed basic, list, and paged-list screen builders
 - draw/view items with rects, widget state, labels, values, and style ids
 - a small `ginput::FrameState` to `gmenu::Input` adapter
 
@@ -105,6 +105,26 @@ animation state, sounds, and transitions.
 
 Text input is backend-neutral. Put SDL text events, key-repeat backspace events,
 or another backend's text feed into `gmenu::Input::text` and `backspace`.
+
+Paged lists cover common profile/save/mod/server/binds pages:
+
+```cpp
+int page = 0;
+gmenu::PagedListScreenDef saves;
+saves.id = Saves;
+saves.layout_id = 100;
+saves.title = "Saves";
+saves.title_id = 1;
+saves.page = &page;
+saves.items_per_page = 4;
+saves.item_slots = {"row0", "row1", "row2", "row3"};
+saves.prev_id = 20;
+saves.next_id = 21;
+saves.page_label_id = 22;
+saves.items.push_back({30, "", "Save 1", "forest", gmenu::Action::none()});
+
+gmenu::register_paged_list_screen(menu, saves);
+```
 
 ## Demo
 

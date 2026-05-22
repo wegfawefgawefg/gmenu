@@ -67,6 +67,9 @@ std::vector<glayout::Layout> make_layouts() {
     layout.objects.push_back(glayout::Object{3, "name", glayout::Rect{0.1f, 0.4f, 0.8f, 0.1f}});
     layout.objects.push_back(glayout::Object{4, "back", glayout::Rect{0.1f, 0.55f, 0.8f, 0.1f}});
     layout.objects.push_back(glayout::Object{5, "quality", glayout::Rect{0.1f, 0.7f, 0.8f, 0.1f}});
+    layout.objects.push_back(glayout::Object{6, "prev", glayout::Rect{0.1f, 0.82f, 0.1f, 0.08f}});
+    layout.objects.push_back(glayout::Object{7, "next", glayout::Rect{0.8f, 0.82f, 0.1f, 0.08f}});
+    layout.objects.push_back(glayout::Object{8, "page", glayout::Rect{0.35f, 0.82f, 0.3f, 0.08f}});
     return {layout};
 }
 
@@ -232,6 +235,51 @@ void test_canned_screens() {
     assert(menu.draw_items()[0].label == "Profiles");
 }
 
+void test_paged_list_screen() {
+    int page = 0;
+    std::vector<glayout::Layout> layouts = make_layouts();
+
+    gmenu::PagedListScreenDef def;
+    def.id = 60;
+    def.layout_id = 100;
+    def.title_id = 600;
+    def.title = "Saves";
+    def.default_focus = 601;
+    def.page = &page;
+    def.items_per_page = 2;
+    def.item_slots = {"play", "settings"};
+    def.page_label_id = 610;
+    def.prev_id = 611;
+    def.next_id = 612;
+    def.items.push_back(gmenu::ListItem{601, "", "Save 1", "forest", gmenu::Action::none()});
+    def.items.push_back(gmenu::ListItem{602, "", "Save 2", "cave", gmenu::Action::none()});
+    def.items.push_back(gmenu::ListItem{603, "", "Save 3", "castle", gmenu::Action::none()});
+
+    gmenu::Menu menu;
+    menu.set_layouts(&layouts);
+    gmenu::register_paged_list_screen(menu, def);
+    assert(menu.set_root(60));
+
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    assert(menu.draw_items().size() == 6);
+    assert(menu.draw_items()[1].label == "Save 1");
+    assert(menu.draw_items()[2].label == "Save 2");
+    assert(menu.draw_items()[3].label == "Page 1 / 2");
+
+    gmenu::Input down;
+    down.down = true;
+    menu.update(down, 0.016f, 800, 600);
+    menu.update(down, 0.4f, 800, 600);
+
+    gmenu::Input select;
+    select.select = true;
+    menu.update(select, 0.016f, 800, 600);
+
+    assert(page == 1);
+    assert(menu.draw_items()[1].label == "Save 3");
+    assert(menu.draw_items()[2].label == "Page 2 / 2");
+}
+
 } // namespace
 
 int main() {
@@ -239,5 +287,6 @@ int main() {
     test_value_widgets_and_text();
     test_ginput_mapping();
     test_canned_screens();
+    test_paged_list_screen();
     return 0;
 }

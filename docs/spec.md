@@ -132,6 +132,8 @@ navigation falls back to selectable widget order.
 
 - `BasicScreenDef`: title plus explicit widgets
 - `ListScreenDef`: title plus button/card list items
+- `PagedListScreenDef`: title plus list items split across pages with optional
+  page label and prev/next/back widgets
 
 These cover main menus, profile pickers, save-slot pickers, simple settings
 pages, and many Gubsy/Splonks-style drill-down pages. More specialized screens
@@ -140,6 +142,9 @@ can still use normal `ScreenBuildFn` functions.
 Data-backed screen definitions are stored by pointer. They must outlive the
 `Menu` that registers them. This keeps ownership explicit and avoids hidden
 allocation or virtual object lifetimes.
+
+Paged-list page state is owned by the caller through an `int*`. Prev/next
+buttons use normal `Action::delta_int` actions.
 
 ## Screen Flow
 
