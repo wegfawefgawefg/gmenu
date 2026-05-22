@@ -55,8 +55,8 @@ These belong in `gmenu` because they affect behavior, not just drawing.
   separate widget or composed-row helper, not as another field on option-cycle.
 
 - Text edit commit behavior.
-  `gmenu` now has `Widget::on_commit` for modified text input commit. This needs
-  to be exercised in more real screens as composed-row work proceeds.
+  `gmenu` has `Widget::on_commit` for modified text input commit. The SDL demo
+  uses it for profile-name and composed resolution text fields.
 
 - Rejection and movement feedback.
   Gubsy plays focus, confirm, cant, left, and right sounds from menu behavior.
@@ -218,5 +218,6 @@ editing.
    menu/layout/nav tabs. Keep improving it as the demo grows.
 
 6. Wire a gubsy-like demo screen.
-   Prove profile, settings, binds, and mixed sub-widget rows can be rebuilt
-   without adding gubsy-specific fields to core widgets.
+   The SDL demo covers profile editing/picking, settings, input binds, and a
+   mixed composed resolution row without adding gubsy-specific fields to core
+   widgets. Keep expanding this as real gubsy migration finds missing cases.

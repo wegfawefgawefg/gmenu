@@ -188,6 +188,7 @@ void build_profile_edit(gmenu::BuildContext& ctx, gmenu::Screen& out) {
     gmenu::Widget name = gmenu::text_input(31, "row0", "Profile Name", state->profile_name, 32);
     name.style = kValueStyle;
     name.nav_down = 32;
+    name.on_commit = gmenu::Action::command_id(g_save_profile_command);
     out.widgets.push_back(std::move(name));
 
     gmenu::Widget save =
@@ -243,6 +244,7 @@ void build_settings_demo(gmenu::BuildContext& ctx, gmenu::Screen& out) {
     profile_name.style = kValueStyle;
     profile_name.nav_up = 22;
     profile_name.nav_down = 26;
+    profile_name.on_commit = gmenu::Action::command_id(g_save_profile_command);
     out.widgets.push_back(std::move(profile_name));
 
     gmenu::ComposedRowDef resolution;
@@ -251,10 +253,12 @@ void build_settings_demo(gmenu::BuildContext& ctx, gmenu::Screen& out) {
     gmenu::Widget width =
         gmenu::text_input(26, "resolution_w", "Width", state->resolution_width, 5);
     width.style = kValueStyle;
+    width.on_commit = gmenu::Action::command_id(g_apply_resolution_command);
     resolution.widgets.push_back(std::move(width));
     gmenu::Widget height =
         gmenu::text_input(27, "resolution_h", "Height", state->resolution_height, 5);
     height.style = kValueStyle;
+    height.on_commit = gmenu::Action::command_id(g_apply_resolution_command);
     resolution.widgets.push_back(std::move(height));
     gmenu::Widget apply = gmenu::button(28, "resolution_apply", "Apply",
                                         gmenu::Action::command_id(g_apply_resolution_command));

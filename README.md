@@ -233,6 +233,10 @@ row.widgets.push_back(gmenu::button(ApplyResolution, "resolution_apply", "Apply"
 gmenu::append_composed_row(screen, std::move(row));
 ```
 
+The SDL demo uses this pattern for a resolution row and wires text-input
+`on_commit` actions to host commands, so editing fields can immediately update
+caller-owned state without adding extra text buffers to a widget.
+
 ## Demo
 
 ```sh
