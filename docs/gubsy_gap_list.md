@@ -177,7 +177,8 @@ editing.
 - The ImGui nav editor is functional but not yet as comfortable as gubsy's
   editor. It now has selected-widget inspection, selectable effective-nav rows,
   clearer validation tables, and a registered-screen picker that can jump the
-  menu root to another screen.
+  menu root to another screen. It can also request nav override save/load while
+  leaving file ownership to the host.
 
 - The combined menu editor should present layout editing and nav editing as one
   tool, while still delegating rectangle edits to `glayout`.

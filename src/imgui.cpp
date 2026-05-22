@@ -262,6 +262,13 @@ bool render_nav_editor(Menu& menu, NavEditorState& editor, ScreenId screen,
     }
 
     ImGui::SeparatorText("Stored Overrides");
+    if (ImGui::Button("Save overrides")) {
+        editor.save_requested = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button("Load overrides")) {
+        editor.load_requested = true;
+    }
     const std::span<const NavOverride> overrides = menu.nav_overrides();
     if (overrides.empty()) {
         ImGui::TextUnformatted("No stored overrides.");

@@ -10,6 +10,8 @@ struct NavEditorState {
     ScreenId selected_screen = invalid_screen;
     NavDirection direction = NavDirection::Down;
     int selected_override = -1;
+    bool save_requested = false;
+    bool load_requested = false;
 };
 
 bool render_nav_editor(Menu& menu, NavEditorState& editor, ScreenId screen,

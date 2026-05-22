@@ -1069,7 +1069,26 @@ int main(int, char**) {
                       state.save_status);
 
 #if defined(GMENU_SDL_DEMO_WITH_IMGUI)
-        if (render_demo_debug_ui(debug_ui, menu, layout_store, layout_editor)) {
+        bool imgui_changed = render_demo_debug_ui(debug_ui, menu, layout_store, layout_editor);
+        if (debug_ui.nav_editor.save_requested) {
+            if (menu.save_nav_file(nav_path)) {
+                menu.mark_nav_saved();
+                state.save_status = "saved nav overrides";
+            } else {
+                state.save_status = "failed to save nav overrides";
+            }
+            debug_ui.nav_editor.save_requested = false;
+        }
+        if (debug_ui.nav_editor.load_requested) {
+            if (menu.load_nav_file(nav_path)) {
+                state.save_status = "loaded nav overrides";
+                imgui_changed = true;
+            } else {
+                state.save_status = "failed to load nav overrides";
+            }
+            debug_ui.nav_editor.load_requested = false;
+        }
+        if (imgui_changed) {
             menu.update(gmenu::Input{}, 0.0f, width, height);
         }
         ImGui::Render();
