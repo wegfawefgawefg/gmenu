@@ -71,6 +71,7 @@ void command_select_profile(gmenu::BuildContext& ctx, int payload) {
         if (profile.id == payload) {
             state->profile_name = profile.name;
             state->save_status = "selected " + profile.name;
+            ctx.menu.pop();
             return;
         }
     }

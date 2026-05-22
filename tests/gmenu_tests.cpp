@@ -159,6 +159,15 @@ void test_value_widgets_and_text() {
     }
     assert(saw_editing);
     assert(saw_value);
+
+    menu.update(select, 0.016f, 800, 600);
+    saw_editing = false;
+    for (const gmenu::DrawItem& item : menu.draw_items()) {
+        if (item.id == 22) {
+            saw_editing = item.state.editing;
+        }
+    }
+    assert(!saw_editing);
 }
 
 void test_ginput_mapping() {

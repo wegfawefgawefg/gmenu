@@ -182,6 +182,7 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
         focused = hovered;
     }
 
+    const bool was_text_editing = editing != invalid_widget;
     update_text_input(screen, input);
     const bool text_editing = editing != invalid_widget;
 
@@ -232,8 +233,13 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
         pressed = hovered;
     } else if (mouse_released) {
         const Widget* clicked = find_widget(screen, pressed);
-        if (clicked && hovered == pressed && !text_editing) {
-            activate_widget(*clicked);
+        if (clicked && hovered == pressed) {
+            if (!text_editing) {
+                activate_widget(*clicked);
+            } else if (clicked->id != editing) {
+                editing = invalid_widget;
+                activate_widget(*clicked);
+            }
         }
         pressed = invalid_widget;
     } else if (!input.mouse_down) {
@@ -241,7 +247,7 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
     }
 
     const Widget* active = find_widget(screen, focused);
-    if (!text_editing && input.select && active && !active->disabled) {
+    if (!text_editing && !was_text_editing && input.select && active && !active->disabled) {
         activate_widget(*active);
     } else if (!text_editing && input.page_prev && active) {
         adjust_widget(*active, -1);
@@ -280,6 +286,11 @@ void Menu::update_text_input(const Screen& screen, const Input& input) {
     }
 
     if (input.back) {
+        editing = invalid_widget;
+        return;
+    }
+
+    if (input.select) {
         editing = invalid_widget;
         return;
     }
