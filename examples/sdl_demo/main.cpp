@@ -1,10 +1,10 @@
 #include "gmenu/gmenu.hpp"
 
 #include <SDL3/SDL.h>
-#include <array>
 #include <cstdio>
 #include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -12,6 +12,9 @@ namespace {
 constexpr gmenu::ScreenId kMain = 1;
 constexpr gmenu::ScreenId kSettings = 2;
 constexpr gmenu::ScreenId kProfiles = 3;
+constexpr gmenu::ScreenId kBinds = 4;
+constexpr gmenu::ScreenId kBindEdit = 5;
+constexpr gmenu::ScreenId kProfileList = 6;
 
 constexpr int kWindowWidth = 1280;
 constexpr int kWindowHeight = 720;
@@ -24,7 +27,22 @@ struct DemoState {
     bool fullscreen = false;
     float volume = 0.5f;
     int quality = 1;
+    std::string profile_name = "Default";
+    std::string save_status = "not saved";
     int selected_profile_id = 1;
+    int profile_page = 0;
+    int bind_action_page = 0;
+    int bind_edit_page = 0;
+    int selected_action = 1;
+    int next_fake_key = 100;
+    std::vector<gmenu::ProfileEntry> profiles{
+        {1, "Default", "keyboard"},
+        {2, "Guest", "gamepad"},
+        {3, "Speedrun", "custom"},
+        {4, "Couch", "shared"},
+    };
+    ginput::Schema input_schema;
+    ginput::InputProfile input_profile;
     bool quit = false;
 };
 
@@ -36,10 +54,117 @@ struct HeldInput {
 };
 
 gmenu::CommandId g_quit_command = gmenu::invalid_command;
+gmenu::CommandId g_select_profile_command = gmenu::invalid_command;
+gmenu::CommandId g_save_profile_command = gmenu::invalid_command;
+gmenu::CommandId g_edit_bind_command = gmenu::invalid_command;
+gmenu::CommandId g_add_bind_command = gmenu::invalid_command;
 
 void command_quit(gmenu::BuildContext& ctx, int) {
     auto* state = static_cast<DemoState*>(ctx.user);
     state->quit = true;
+}
+
+void command_select_profile(gmenu::BuildContext& ctx, int payload) {
+    auto* state = static_cast<DemoState*>(ctx.user);
+    state->selected_profile_id = payload;
+    for (const gmenu::ProfileEntry& profile : state->profiles) {
+        if (profile.id == payload) {
+            state->profile_name = profile.name;
+            state->save_status = "selected " + profile.name;
+            return;
+        }
+    }
+}
+
+void command_save_profile(gmenu::BuildContext& ctx, int) {
+    auto* state = static_cast<DemoState*>(ctx.user);
+    std::string name = state->profile_name.empty() ? "Unnamed" : state->profile_name;
+    for (gmenu::ProfileEntry& profile : state->profiles) {
+        if (profile.id == state->selected_profile_id) {
+            profile.name = name;
+            profile.secondary = "saved in memory";
+            state->save_status = "saved " + name;
+            return;
+        }
+    }
+}
+
+void command_edit_bind(gmenu::BuildContext& ctx, int payload) {
+    auto* state = static_cast<DemoState*>(ctx.user);
+    state->selected_action = payload;
+    state->bind_edit_page = 0;
+    ctx.menu.push(kBindEdit);
+}
+
+void command_add_bind(gmenu::BuildContext& ctx, int payload) {
+    auto* state = static_cast<DemoState*>(ctx.user);
+    ginput::DeviceButton button;
+    button.kind = ginput::DeviceKind::Keyboard;
+    button.code = state->next_fake_key;
+    ++state->next_fake_key;
+    ginput::add_button_bind(state->input_profile,
+                            ginput::ButtonBind{ginput::encode_button(button), payload});
+    state->save_status = "added fake key " + std::to_string(button.code);
+}
+
+void init_input_demo(DemoState& state) {
+    state.input_schema.add_action(1, "Move Left", "movement");
+    state.input_schema.add_action(2, "Move Right", "movement");
+    state.input_schema.add_action(3, "Jump", "movement");
+    state.input_schema.add_action(4, "Pause", "system");
+    state.input_profile.id = 1;
+    state.input_profile.name = "keyboard";
+
+    ginput::DeviceButton left;
+    left.kind = ginput::DeviceKind::Keyboard;
+    left.code = 'A';
+    ginput::add_button_bind(state.input_profile,
+                            ginput::ButtonBind{ginput::encode_button(left), 1});
+
+    ginput::DeviceButton right;
+    right.kind = ginput::DeviceKind::Keyboard;
+    right.code = 'D';
+    ginput::add_button_bind(state.input_profile,
+                            ginput::ButtonBind{ginput::encode_button(right), 2});
+
+    ginput::DeviceButton jump;
+    jump.kind = ginput::DeviceKind::Keyboard;
+    jump.code = ' ';
+    ginput::add_button_bind(state.input_profile,
+                            ginput::ButtonBind{ginput::encode_button(jump), 3});
+}
+
+void build_profile_edit(gmenu::BuildContext& ctx, gmenu::Screen& out) {
+    auto* state = static_cast<DemoState*>(ctx.user);
+    out.id = kProfiles;
+    out.layout_id = 100;
+    out.default_focus = 31;
+
+    gmenu::Widget title = gmenu::label(3, "title", "profile save");
+    title.style = kTitleStyle;
+    out.widgets.push_back(std::move(title));
+
+    gmenu::Widget status = gmenu::label(30, "status", state->save_status);
+    status.style = kValueStyle;
+    out.widgets.push_back(std::move(status));
+
+    gmenu::Widget name = gmenu::text_input(31, "row0", "Profile Name", state->profile_name, 32);
+    name.style = kValueStyle;
+    out.widgets.push_back(std::move(name));
+
+    gmenu::Widget save =
+        gmenu::button(32, "row1", "Save Name", gmenu::Action::command_id(g_save_profile_command));
+    save.style = kButtonStyle;
+    out.widgets.push_back(std::move(save));
+
+    gmenu::Widget pick =
+        gmenu::button(33, "row2", "Pick Profile", gmenu::Action::push(kProfileList));
+    pick.style = kButtonStyle;
+    out.widgets.push_back(std::move(pick));
+
+    gmenu::Widget back = gmenu::button(34, "back", "Back", gmenu::Action::pop());
+    back.style = kButtonStyle;
+    out.widgets.push_back(std::move(back));
 }
 
 std::vector<glayout::Layout> make_layouts() {
@@ -49,11 +174,22 @@ std::vector<glayout::Layout> make_layouts() {
     layout.width = 1280;
     layout.height = 720;
     layout.objects.push_back(
-        glayout::Object{1, "title", glayout::Rect{0.18f, 0.08f, 0.64f, 0.12f}});
-    layout.objects.push_back(glayout::Object{2, "row0", glayout::Rect{0.24f, 0.27f, 0.52f, 0.09f}});
-    layout.objects.push_back(glayout::Object{3, "row1", glayout::Rect{0.24f, 0.40f, 0.52f, 0.09f}});
-    layout.objects.push_back(glayout::Object{4, "row2", glayout::Rect{0.24f, 0.53f, 0.52f, 0.09f}});
-    layout.objects.push_back(glayout::Object{5, "row3", glayout::Rect{0.24f, 0.66f, 0.52f, 0.09f}});
+        glayout::Object{1, "title", glayout::Rect{0.18f, 0.06f, 0.64f, 0.10f}});
+    layout.objects.push_back(
+        glayout::Object{2, "status", glayout::Rect{0.24f, 0.17f, 0.52f, 0.06f}});
+    layout.objects.push_back(glayout::Object{3, "row0", glayout::Rect{0.24f, 0.25f, 0.52f, 0.07f}});
+    layout.objects.push_back(glayout::Object{4, "row1", glayout::Rect{0.24f, 0.34f, 0.52f, 0.07f}});
+    layout.objects.push_back(glayout::Object{5, "row2", glayout::Rect{0.24f, 0.43f, 0.52f, 0.07f}});
+    layout.objects.push_back(glayout::Object{6, "row3", glayout::Rect{0.24f, 0.52f, 0.52f, 0.07f}});
+    layout.objects.push_back(glayout::Object{7, "row4", glayout::Rect{0.24f, 0.61f, 0.52f, 0.07f}});
+    layout.objects.push_back(glayout::Object{8, "row5", glayout::Rect{0.24f, 0.70f, 0.52f, 0.07f}});
+    layout.objects.push_back(glayout::Object{9, "page", glayout::Rect{0.24f, 0.80f, 0.20f, 0.06f}});
+    layout.objects.push_back(
+        glayout::Object{10, "prev", glayout::Rect{0.46f, 0.80f, 0.08f, 0.06f}});
+    layout.objects.push_back(
+        glayout::Object{11, "next", glayout::Rect{0.56f, 0.80f, 0.08f, 0.06f}});
+    layout.objects.push_back(
+        glayout::Object{12, "back", glayout::Rect{0.66f, 0.80f, 0.10f, 0.06f}});
     return {layout};
 }
 
@@ -93,6 +229,22 @@ void draw_item(SDL_Renderer* renderer, const gmenu::DrawItem& item) {
 
     set_color(renderer, 248, 248, 238);
     draw_text(renderer, rect.x + 14.0f, rect.y + 14.0f, item.label);
+    if (!item.secondary.empty()) {
+        set_color(renderer, 190, 205, 215);
+        draw_text(renderer, rect.x + 14.0f, rect.y + 34.0f, item.secondary);
+    }
+    if (item.type == gmenu::WidgetType::Slider1D) {
+        SDL_FRect track{rect.x + 14.0f, rect.y + rect.h - 16.0f, rect.w - 28.0f, 5.0f};
+        set_color(renderer, 20, 30, 40);
+        SDL_RenderFillRect(renderer, &track);
+        SDL_FRect fill = track;
+        fill.w *= 0.5f;
+        if (!item.value.empty()) {
+            fill.w = track.w * std::stof(item.value);
+        }
+        set_color(renderer, 235, 184, 63);
+        SDL_RenderFillRect(renderer, &fill);
+    }
     if (!item.value.empty()) {
         draw_text(renderer, rect.x + rect.w - 160.0f, rect.y + 14.0f, item.value);
     }
@@ -174,19 +326,19 @@ int main(int, char**) {
         SDL_Quit();
         return 1;
     }
+    SDL_StartTextInput(window);
 
     DemoState state;
-    std::vector<gmenu::ProfileEntry> profiles{
-        {1, "Default", "keyboard"},
-        {2, "Guest", "gamepad"},
-        {3, "Speedrun", "custom"},
-    };
-    int profile_page = 0;
+    init_input_demo(state);
     std::vector<glayout::Layout> layouts = make_layouts();
     gmenu::Menu menu;
     menu.set_layouts(&layouts);
     menu.set_user_data(&state);
     g_quit_command = menu.register_command(command_quit);
+    g_select_profile_command = menu.register_command(command_select_profile);
+    g_save_profile_command = menu.register_command(command_save_profile);
+    g_edit_bind_command = menu.register_command(command_edit_bind);
+    g_add_bind_command = menu.register_command(command_add_bind);
 
     gmenu::ListScreenDef main_def;
     main_def.id = kMain;
@@ -201,8 +353,10 @@ int main(int, char**) {
         gmenu::ListItem{11, "row1", "Settings", "", gmenu::Action::push(kSettings), kButtonStyle});
     main_def.items.push_back(
         gmenu::ListItem{12, "row2", "Profiles", "", gmenu::Action::push(kProfiles), kButtonStyle});
+    main_def.items.push_back(
+        gmenu::ListItem{13, "row3", "Input Binds", "", gmenu::Action::push(kBinds), kButtonStyle});
     main_def.items.push_back(gmenu::ListItem{
-        13, "row3", "Quit", "", gmenu::Action::command_id(g_quit_command), kButtonStyle});
+        14, "row4", "Quit", "", gmenu::Action::command_id(g_quit_command), kButtonStyle});
 
     gmenu::SettingsScreenDef settings_def;
     settings_def.id = kSettings;
@@ -213,8 +367,8 @@ int main(int, char**) {
     settings_def.default_focus = 20;
     settings_def.item_style = kValueStyle;
     settings_def.nav_style = kButtonStyle;
-    settings_def.back_id = 23;
-    settings_def.back_slot = "row3";
+    settings_def.back_id = 25;
+    settings_def.back_slot = "back";
     gmenu::SettingItem fullscreen;
     fullscreen.id = 20;
     fullscreen.slot = "row0";
@@ -240,27 +394,86 @@ int main(int, char**) {
     quality.option_index = &state.quality;
     quality.options = {"low", "medium", "high"};
     settings_def.items.push_back(quality);
+    gmenu::SettingItem profile_name;
+    profile_name.id = 23;
+    profile_name.slot = "row3";
+    profile_name.label = "Profile Name";
+    profile_name.type = gmenu::SettingType::TextInput;
+    profile_name.text_value = &state.profile_name;
+    profile_name.text_max_len = 32;
+    settings_def.items.push_back(profile_name);
 
     gmenu::ProfileListScreenDef profiles_def;
-    profiles_def.id = kProfiles;
+    profiles_def.id = kProfileList;
     profiles_def.layout_id = 100;
-    profiles_def.title_id = 3;
+    profiles_def.title_id = 40;
     profiles_def.title = "profiles";
     profiles_def.title_style = kTitleStyle;
     profiles_def.default_focus = 3001;
-    profiles_def.profiles = &profiles;
+    profiles_def.profiles = &state.profiles;
     profiles_def.selected_profile_id = &state.selected_profile_id;
-    profiles_def.page = &profile_page;
+    profiles_def.select_command = g_select_profile_command;
+    profiles_def.page = &state.profile_page;
     profiles_def.items_per_page = 3;
     profiles_def.item_slots = {"row0", "row1", "row2"};
-    profiles_def.back_id = 31;
-    profiles_def.back_slot = "row3";
+    profiles_def.page_label_id = 41;
+    profiles_def.prev_id = 42;
+    profiles_def.next_id = 43;
+    profiles_def.back_id = 44;
+    profiles_def.back_slot = "back";
     profiles_def.nav_style = kButtonStyle;
     profiles_def.item_style = kValueStyle;
 
+    gmenu::BindActionListScreenDef binds_def;
+    binds_def.id = kBinds;
+    binds_def.layout_id = 100;
+    binds_def.title_id = 50;
+    binds_def.title = "input binds";
+    binds_def.title_style = kTitleStyle;
+    binds_def.default_focus = 1001;
+    binds_def.schema = &state.input_schema;
+    binds_def.profile = &state.input_profile;
+    binds_def.page = &state.bind_action_page;
+    binds_def.items_per_page = 4;
+    binds_def.item_slots = {"row0", "row1", "row2", "row3"};
+    binds_def.edit_command = g_edit_bind_command;
+    binds_def.page_label_id = 51;
+    binds_def.prev_id = 52;
+    binds_def.next_id = 53;
+    binds_def.back_id = 54;
+    binds_def.back_slot = "back";
+    binds_def.nav_style = kButtonStyle;
+    binds_def.item_style = kValueStyle;
+
+    gmenu::BindActionEditScreenDef bind_edit_def;
+    bind_edit_def.id = kBindEdit;
+    bind_edit_def.layout_id = 100;
+    bind_edit_def.title_id = 60;
+    bind_edit_def.title_style = kTitleStyle;
+    bind_edit_def.default_focus = 61;
+    bind_edit_def.schema = &state.input_schema;
+    bind_edit_def.profile = &state.input_profile;
+    bind_edit_def.action = &state.selected_action;
+    bind_edit_def.page = &state.bind_edit_page;
+    bind_edit_def.items_per_page = 3;
+    bind_edit_def.item_slots = {"row0", "row1", "row2"};
+    bind_edit_def.add_command = g_add_bind_command;
+    bind_edit_def.add_id = 61;
+    bind_edit_def.add_slot = "row3";
+    bind_edit_def.page_label_id = 62;
+    bind_edit_def.prev_id = 63;
+    bind_edit_def.next_id = 64;
+    bind_edit_def.back_id = 65;
+    bind_edit_def.back_slot = "back";
+    bind_edit_def.nav_style = kButtonStyle;
+    bind_edit_def.item_style = kValueStyle;
+
     gmenu::register_list_screen(menu, main_def);
     gmenu::register_settings_screen(menu, settings_def);
+    menu.register_screen(kProfiles, build_profile_edit);
     gmenu::register_profile_list_screen(menu, profiles_def);
+    gmenu::register_bind_action_list_screen(menu, binds_def);
+    gmenu::register_bind_action_edit_screen(menu, bind_edit_def);
     menu.set_root(kMain);
 
     HeldInput held;
@@ -306,12 +519,13 @@ int main(int, char**) {
             draw_item(renderer, item);
         }
         set_color(renderer, 155, 170, 185);
-        draw_text(
-            renderer, 18.0f, static_cast<float>(height) - 28.0f,
-            "arrows/wasd navigate, enter select, esc back, profiles/settings use canned screens");
+        draw_text(renderer, 18.0f, static_cast<float>(height) - 28.0f,
+                  "arrows/wasd navigate, enter select/edit, esc back, q/e page, status: " +
+                      state.save_status);
         SDL_RenderPresent(renderer);
     }
 
+    SDL_StopTextInput(window);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
