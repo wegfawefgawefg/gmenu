@@ -10,12 +10,28 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
       }
+    },
+    {
+      "name": "imgui-demo",
+      "displayName": "imgui-demo",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-imgui-demo",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "GMENU_WITH_IMGUI": "ON",
+        "GMENU_IMGUI_SOURCE_DIR": "${sourceDir}/../glayout/build/_deps/imgui_demo_source-src"
+      }
     }
   ],
   "buildPresets": [
     {
       "name": "dev",
       "configurePreset": "dev"
+    },
+    {
+      "name": "imgui-demo",
+      "configurePreset": "imgui-demo"
     }
   ]
 }

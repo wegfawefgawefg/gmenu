@@ -2,6 +2,16 @@
   "version": "0.2.0",
   "configurations": [
     {
+      "name": "gmenu SDL demo (ImGui)",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/build-imgui-demo/gmenu_sdl_demo",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "build gmenu imgui demo",
+      "MIMode": "gdb"
+    },
+    {
       "name": "gmenu SDL demo",
       "type": "cppdbg",
       "request": "launch",

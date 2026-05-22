@@ -7,6 +7,13 @@
       "command": "${workspaceFolder}/scripts/build.sh",
       "group": "build",
       "problemMatcher": "$gcc"
+    },
+    {
+      "label": "build gmenu imgui demo",
+      "type": "shell",
+      "command": "${workspaceFolder}/scripts/build_imgui_demo.sh",
+      "group": "build",
+      "problemMatcher": "$gcc"
     }
   ]
 }

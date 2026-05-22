@@ -183,9 +183,12 @@ dispatch a selection command.
 ./scripts/build.sh
 ./scripts/run.sh
 ./scripts/run_sdl_demo.sh
+./scripts/run_sdl_demo_imgui.sh
 ```
 
-VS Code F5 runs the SDL3 demo when SDL3 is available.
+VS Code F5 runs the ImGui-enabled SDL3 demo when SDL3 and the local Dear ImGui
+source checkout are available. The plain SDL launch configuration is still
+available as `gmenu SDL demo`.
 
 Demo controls:
 
