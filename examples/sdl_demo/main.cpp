@@ -536,11 +536,6 @@ void draw_item(SDL_Renderer* renderer, const gmenu::DrawItem& item) {
         SDL_RenderFillRect(renderer, &fill);
     }
     if (item.type == gmenu::WidgetType::OptionCycle) {
-        if (item.controls.has_option_value) {
-            SDL_FRect value = to_sdl(item.controls.option_value);
-            set_color(renderer, 24, 37, 53);
-            SDL_RenderFillRect(renderer, &value);
-        }
         if (item.controls.has_option_left) {
             SDL_FRect left = to_sdl(item.controls.option_left);
             set_color(renderer, 20, 30, 40);
