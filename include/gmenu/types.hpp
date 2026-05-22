@@ -49,11 +49,42 @@ enum class NavDirection : std::uint8_t {
     Right,
 };
 
+enum class NavSource : std::uint8_t {
+    None,
+    Fallback,
+    Explicit,
+    Override,
+};
+
 struct NavLinks {
     WidgetId up = invalid_widget;
     WidgetId down = invalid_widget;
     WidgetId left = invalid_widget;
     WidgetId right = invalid_widget;
+};
+
+struct NavScope {
+    ScreenId screen = invalid_screen;
+    int layout_id = 0;
+    int width = 0;
+    int height = 0;
+    glayout::FormFactor form_factor = glayout::FormFactor::Desktop;
+    bool match_resolution = false;
+    bool match_form_factor = false;
+};
+
+struct NavOverride {
+    NavScope scope;
+    WidgetId widget = invalid_widget;
+    NavLinks links;
+};
+
+struct NavValidationIssue {
+    ScreenId screen = invalid_screen;
+    WidgetId widget = invalid_widget;
+    WidgetId target = invalid_widget;
+    NavDirection direction = NavDirection::Down;
+    std::string message;
 };
 
 struct Action {
@@ -162,6 +193,10 @@ struct DrawItem {
     WidgetId nav_down = invalid_widget;
     WidgetId nav_left = invalid_widget;
     WidgetId nav_right = invalid_widget;
+    NavSource nav_up_source = NavSource::None;
+    NavSource nav_down_source = NavSource::None;
+    NavSource nav_left_source = NavSource::None;
+    NavSource nav_right_source = NavSource::None;
 };
 
 } // namespace gmenu

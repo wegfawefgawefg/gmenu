@@ -56,8 +56,11 @@ The consuming game owns policy.
 - `gmenu` runtime can build screens from C++ screen definitions/builders.
 - `gmenu` widgets refer to `glayout` slots by label.
 - `gmenu` can consume a shared `glayout::LayoutStore`.
-- `gmenu` `DrawItem` exposes widget ids, rectangles, state, and explicit nav ids.
+- `gmenu` `DrawItem` exposes widget ids, rectangles, state, effective nav ids,
+  and nav source tags.
 - `gmenu` stores nav overrides keyed by screen id and widget id.
+- `gmenu` can save and load nav overrides as S-expression files.
+- `gmenu::imgui` provides an optional nav editor/debug panel.
 - The SDL demo has an F1 `glayout` core edit overlay for one in-memory layout.
 - The SDL demo has an F2 nav editor that can select a source widget, arm a
   direction, click a target widget, and clear links.
@@ -72,11 +75,10 @@ This is now enough to prove the library boundary: `glayout` edits slots and
    - Keep it independent from menus and SDL/ImGui where possible.
    - Provide draw data and optional ImGui helpers.
 
-2. Add persistence for `gmenu` nav overrides.
-   - Choose the file format.
-   - Save and load screen/widget/direction/target links.
+2. Tighten nav validation.
    - Report diagnostics for links pointing at missing widgets.
-   - Mark nav data dirty when edited.
+   - Show disabled/hidden targets distinctly.
+   - Add tests for scoped nav records.
 
 3. Add a combined menu editor surface.
    - Screen picker.

@@ -59,10 +59,18 @@ void Menu::rebuild_draw_items(const Screen& screen, int width, int height,
         item.label = widget.label;
         item.secondary = widget.secondary;
         item.value = widget_value_text(widget);
-        item.nav_up = widget.nav_up;
-        item.nav_down = widget.nav_down;
-        item.nav_left = widget.nav_left;
-        item.nav_right = widget.nav_right;
+        item.nav_up = effective_nav(screen, widget, NavDirection::Up);
+        item.nav_down = effective_nav(screen, widget, NavDirection::Down);
+        item.nav_left = effective_nav(screen, widget, NavDirection::Left);
+        item.nav_right = effective_nav(screen, widget, NavDirection::Right);
+        item.nav_up_source =
+            nav_source(screen, widget, NavDirection::Up, width, height, form_factor);
+        item.nav_down_source =
+            nav_source(screen, widget, NavDirection::Down, width, height, form_factor);
+        item.nav_left_source =
+            nav_source(screen, widget, NavDirection::Left, width, height, form_factor);
+        item.nav_right_source =
+            nav_source(screen, widget, NavDirection::Right, width, height, form_factor);
         item.state.focused = widget.id == focused;
         item.state.hovered = widget.id == hovered;
         item.state.pressed = widget.id == pressed;

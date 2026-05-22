@@ -6,6 +6,7 @@
 #include "gmenu/widgets.hpp"
 
 #include <cstdint>
+#include <filesystem>
 #include <span>
 #include <unordered_map>
 #include <vector>
@@ -55,9 +56,20 @@ class Menu {
     void* user_data() const;
 
     void set_nav_link(ScreenId screen, WidgetId widget, NavDirection direction, WidgetId target);
+    void set_nav_link(NavScope scope, WidgetId widget, NavDirection direction, WidgetId target);
     void clear_nav_link(ScreenId screen, WidgetId widget, NavDirection direction);
+    void clear_nav_link(NavScope scope, WidgetId widget, NavDirection direction);
     void clear_nav_links(ScreenId screen, WidgetId widget);
+    void clear_nav_links(NavScope scope, WidgetId widget);
     NavLinks nav_links(ScreenId screen, WidgetId widget) const;
+    NavLinks nav_links(NavScope scope, WidgetId widget) const;
+    std::span<const NavOverride> nav_overrides() const;
+    bool nav_dirty() const;
+    void mark_nav_saved();
+    bool load_nav_file(const std::filesystem::path& path);
+    bool save_nav_file(const std::filesystem::path& path) const;
+    std::vector<NavValidationIssue>
+    validate_nav_overrides(ScreenId screen, std::span<const DrawItem> draw_item_list) const;
 
   private:
     struct ScreenInstance {
@@ -66,7 +78,8 @@ class Menu {
 
     const ScreenDef* find_screen(ScreenId id) const;
     Screen build_current_screen(int width, int height, glayout::FormFactor form_factor);
-    void apply_nav_overrides(Screen& screen) const;
+    void apply_nav_overrides(Screen& screen, int width, int height,
+                             glayout::FormFactor form_factor) const;
     void rebuild_draw_items(const Screen& screen, int width, int height,
                             glayout::FormFactor form_factor);
     void update_focus(const Screen& screen, const Input& input, float dt);
@@ -79,6 +92,10 @@ class Menu {
     WidgetId first_selectable(const Screen& screen) const;
     WidgetId resolve_nav(const Screen& screen, WidgetId from, WidgetId explicit_target,
                          int direction) const;
+    WidgetId effective_nav(const Screen& screen, const Widget& widget,
+                           NavDirection direction) const;
+    NavSource nav_source(const Screen& screen, const Widget& widget, NavDirection direction,
+                         int width, int height, glayout::FormFactor form_factor) const;
     const Widget* find_widget(const Screen& screen, WidgetId id) const;
     Widget* find_widget(Screen& screen, WidgetId id) const;
     WidgetId hovered_widget(const Screen& screen, const Input& input) const;
@@ -91,7 +108,8 @@ class Menu {
     std::vector<DrawItem> items;
     const std::vector<glayout::Layout>* layouts = nullptr;
     const glayout::LayoutStore* layout_store = nullptr;
-    std::unordered_map<std::uint64_t, NavLinks> nav_overrides;
+    std::vector<NavOverride> nav_override_records;
+    bool nav_dirty_flag = false;
     void* user = nullptr;
 
     WidgetId focused = invalid_widget;

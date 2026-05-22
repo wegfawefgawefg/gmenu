@@ -4,6 +4,7 @@
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cstdio>
+#include <filesystem>
 #include <iostream>
 #include <span>
 #include <string>
@@ -68,6 +69,8 @@ struct NavEditState {
     bool mouse_was_down = false;
     bool clear_source = false;
     bool clear_link = false;
+    bool save_requested = false;
+    bool load_requested = false;
 };
 
 gmenu::CommandId g_quit_command = gmenu::invalid_command;
@@ -308,6 +311,35 @@ const char* direction_text(gmenu::NavDirection direction) {
     return "down";
 }
 
+const char* nav_source_text(gmenu::NavSource source) {
+    switch (source) {
+    case gmenu::NavSource::None:
+        return "none";
+    case gmenu::NavSource::Fallback:
+        return "fallback";
+    case gmenu::NavSource::Explicit:
+        return "explicit";
+    case gmenu::NavSource::Override:
+        return "override";
+    }
+    return "none";
+}
+
+gmenu::NavSource nav_source_for_direction(const gmenu::DrawItem& item,
+                                          gmenu::NavDirection direction) {
+    switch (direction) {
+    case gmenu::NavDirection::Up:
+        return item.nav_up_source;
+    case gmenu::NavDirection::Down:
+        return item.nav_down_source;
+    case gmenu::NavDirection::Left:
+        return item.nav_left_source;
+    case gmenu::NavDirection::Right:
+        return item.nav_right_source;
+    }
+    return gmenu::NavSource::None;
+}
+
 SDL_FPoint edge_point(glayout::Rect rect, const char* direction) {
     if (std::string(direction) == "up") {
         return SDL_FPoint{rect.x + rect.w * 0.5f, rect.y};
@@ -322,21 +354,28 @@ SDL_FPoint edge_point(glayout::Rect rect, const char* direction) {
 }
 
 void draw_nav_link(SDL_Renderer* renderer, const std::span<const gmenu::DrawItem>& items,
-                   const gmenu::DrawItem& source, gmenu::WidgetId target_id,
-                   const char* direction) {
+                   const gmenu::DrawItem& source, gmenu::WidgetId target_id, const char* direction,
+                   gmenu::NavSource nav_source) {
     const gmenu::DrawItem* target = find_draw_item(items, target_id);
-    if (!target) {
+    if (!target || nav_source == gmenu::NavSource::None) {
         return;
     }
 
     SDL_FPoint from = edge_point(source.rect, direction);
     SDL_FPoint to = edge_point(target->rect, direction);
-    set_color(renderer, 255, 210, 95);
+    if (nav_source == gmenu::NavSource::Override) {
+        set_color(renderer, 255, 210, 95);
+    } else if (nav_source == gmenu::NavSource::Explicit) {
+        set_color(renderer, 125, 180, 225);
+    } else {
+        set_color(renderer, 95, 105, 115);
+    }
     SDL_RenderLine(renderer, from.x, from.y, to.x, to.y);
 
     const float mid_x = (from.x + to.x) * 0.5f;
     const float mid_y = (from.y + to.y) * 0.5f;
-    draw_text(renderer, mid_x + 4.0f, mid_y + 4.0f, direction);
+    std::string label = std::string(direction) + " " + nav_source_text(nav_source);
+    draw_text(renderer, mid_x + 4.0f, mid_y + 4.0f, label);
 }
 
 void draw_nav_overlay(SDL_Renderer* renderer, const std::span<const gmenu::DrawItem>& items,
@@ -356,10 +395,14 @@ void draw_nav_overlay(SDL_Renderer* renderer, const std::span<const gmenu::DrawI
         draw_text(renderer, item.rect.x + 4.0f, item.rect.y + item.rect.h - 16.0f,
                   "#" + std::to_string(item.id));
 
-        draw_nav_link(renderer, items, item, item.nav_up, "up");
-        draw_nav_link(renderer, items, item, item.nav_down, "down");
-        draw_nav_link(renderer, items, item, item.nav_left, "left");
-        draw_nav_link(renderer, items, item, item.nav_right, "right");
+        draw_nav_link(renderer, items, item, item.nav_up, "up",
+                      nav_source_for_direction(item, gmenu::NavDirection::Up));
+        draw_nav_link(renderer, items, item, item.nav_down, "down",
+                      nav_source_for_direction(item, gmenu::NavDirection::Down));
+        draw_nav_link(renderer, items, item, item.nav_left, "left",
+                      nav_source_for_direction(item, gmenu::NavDirection::Left));
+        draw_nav_link(renderer, items, item, item.nav_right, "right",
+                      nav_source_for_direction(item, gmenu::NavDirection::Right));
     }
 }
 
@@ -525,6 +568,16 @@ void apply_key(SDL_Keycode key, bool down, HeldInput& held, gmenu::Input& input,
             editor_input.key_paste = toggles.layout_edit;
         }
         break;
+    case SDLK_S:
+        if (down && toggles.nav_overlay) {
+            nav_editor.save_requested = true;
+        }
+        break;
+    case SDLK_L:
+        if (down && toggles.nav_overlay) {
+            nav_editor.load_requested = true;
+        }
+        break;
     default:
         break;
     }
@@ -563,6 +616,10 @@ int main(int, char**) {
     gmenu::Menu menu;
     menu.set_layout_store(&layout_store);
     menu.set_user_data(&state);
+    const std::filesystem::path nav_path = "gmenu_nav_demo.lisp";
+    if (menu.load_nav_file(nav_path)) {
+        state.save_status = "loaded nav overrides";
+    }
     g_quit_command = menu.register_command(command_quit);
     g_select_profile_command = menu.register_command(command_select_profile);
     g_save_profile_command = menu.register_command(command_save_profile);
@@ -817,6 +874,24 @@ int main(int, char**) {
             nav_editor.clear_link = false;
             nav_editor.clear_source = false;
         }
+        if (toggles.nav_overlay && nav_editor.save_requested) {
+            if (menu.save_nav_file(nav_path)) {
+                menu.mark_nav_saved();
+                state.save_status = "saved nav overrides";
+            } else {
+                state.save_status = "failed to save nav overrides";
+            }
+            nav_editor.save_requested = false;
+        }
+        if (toggles.nav_overlay && nav_editor.load_requested) {
+            if (menu.load_nav_file(nav_path)) {
+                state.save_status = "loaded nav overrides";
+                menu.update(gmenu::Input{}, 0.0f, width, height);
+            } else {
+                state.save_status = "failed to load nav overrides";
+            }
+            nav_editor.load_requested = false;
+        }
 
         set_color(renderer, 16, 22, 29);
         SDL_RenderClear(renderer);
@@ -847,11 +922,14 @@ int main(int, char**) {
                 nav_text += ", click target for ";
                 nav_text += direction_text(nav_editor.direction);
             }
+            if (menu.nav_dirty()) {
+                nav_text += " [dirty]";
+            }
             draw_text(renderer, 18.0f, static_cast<float>(height) - 44.0f, nav_text);
         }
         draw_text(renderer, 18.0f, static_cast<float>(height) - 28.0f,
                   "F1 layout edit, F2 nav edit, arrows navigate, enter select/edit, esc back, "
-                  "q/e page; binds add fake keys only; status: " +
+                  "q/e page; nav S save/L load; binds add fake keys only; status: " +
                       state.save_status);
         SDL_RenderPresent(renderer);
     }

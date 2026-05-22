@@ -24,6 +24,7 @@ It does not own SDL, rendering, audio, asset loading, or animation systems.
 - paged profile list screen builder
 - draw/view items with rects, widget state, labels, values, and style ids
 - explicit nav override storage for editor-authored focus links
+- optional `gmenu::imgui` helpers for nav editing/debugging
 - a small `ginput::FrameState` to `gmenu::Input` adapter
 
 Rendering is done by the host program. The host can draw plain rectangles,
@@ -115,8 +116,28 @@ menu.set_nav_link(MainMenu, PlayButton, gmenu::NavDirection::Down, SettingsButto
 menu.clear_nav_link(MainMenu, PlayButton, gmenu::NavDirection::Down);
 ```
 
-The links are applied after a screen is built. This keeps generated C++ screens
-usable while allowing editor-authored nav overrides.
+The links are applied after a screen is built. Runtime navigation uses an
+authored link first. If no link exists for that direction, `gmenu` falls back to
+selectable widget order so simple screens do not need hand-authored nav tables.
+`DrawItem` reports both the effective nav target and whether it came from an
+override, explicit widget link, or fallback.
+
+Nav overrides can be saved as S-expressions:
+
+```cpp
+menu.save_nav_file("menu_nav.lisp");
+menu.mark_nav_saved();
+menu.load_nav_file("menu_nav.lisp");
+```
+
+Optional ImGui helpers are isolated in `gmenu::imgui`:
+
+```cmake
+set(GMENU_WITH_IMGUI ON CACHE BOOL "" FORCE)
+set(GMENU_IMGUI_TARGET imgui CACHE STRING "" FORCE)
+add_subdirectory(third_party/gmenu)
+target_link_libraries(my_game PRIVATE gmenu::gmenu gmenu::imgui)
+```
 
 Text input is backend-neutral. Put SDL text events, key-repeat backspace events,
 or another backend's text feed into `gmenu::Input::text` and `backspace`.
@@ -167,4 +188,5 @@ Demo controls:
   `C`/`V` for copy/paste, and delete/backspace to remove a slot.
 - `F2`: edit `gmenu` navigation. Click a source widget, press an arrow for the
   direction, then click a target widget. Backspace clears the armed direction;
-  delete clears links for the selected source.
+  delete clears links for the selected source. `S` saves nav overrides to
+  `gmenu_nav_demo.lisp`; `L` reloads them.

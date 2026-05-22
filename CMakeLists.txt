@@ -7,6 +7,9 @@ option(GMENU_WARN_AS_ERROR "Treat warnings as errors" OFF)
 option(GMENU_BUILD_EXAMPLES "Build example programs" ON)
 option(GMENU_BUILD_TESTS "Build test programs" ON)
 option(GMENU_BUILD_SDL_DEMO "Build SDL3 demo program when SDL3 is available" ON)
+option(GMENU_WITH_IMGUI "Build optional Dear ImGui helpers" OFF)
+set(GMENU_IMGUI_TARGET "" CACHE STRING "Dear ImGui CMake target for optional ImGui helpers")
+set(GMENU_IMGUI_SOURCE_DIR "" CACHE PATH "Optional Dear ImGui source tree used to create an imgui target")
 
 set(GMENU_GLAYOUT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../glayout"
     CACHE PATH "Path to a glayout source tree when glayout::core is not already available")
@@ -44,6 +47,7 @@ add_library(gmenu
     src/input_screens.cpp
     src/menu.cpp
     src/nav.cpp
+    src/nav_io.cpp
     src/screens.cpp
     src/types.cpp
     src/view.cpp
@@ -86,6 +90,46 @@ function(gmenu_apply_warnings target_name)
 endfunction()
 
 gmenu_apply_warnings(gmenu)
+
+if(GMENU_WITH_IMGUI)
+    set(GMENU_RESOLVED_IMGUI_TARGET "")
+    if(GMENU_IMGUI_TARGET AND TARGET ${GMENU_IMGUI_TARGET})
+        set(GMENU_RESOLVED_IMGUI_TARGET ${GMENU_IMGUI_TARGET})
+    elseif(TARGET imgui)
+        set(GMENU_RESOLVED_IMGUI_TARGET imgui)
+    elseif(TARGET ImGui::ImGui)
+        set(GMENU_RESOLVED_IMGUI_TARGET ImGui::ImGui)
+    elseif(GMENU_IMGUI_SOURCE_DIR AND EXISTS "${GMENU_IMGUI_SOURCE_DIR}/imgui.cpp")
+        add_library(imgui STATIC
+            "${GMENU_IMGUI_SOURCE_DIR}/imgui.cpp"
+            "${GMENU_IMGUI_SOURCE_DIR}/imgui_draw.cpp"
+            "${GMENU_IMGUI_SOURCE_DIR}/imgui_tables.cpp"
+            "${GMENU_IMGUI_SOURCE_DIR}/imgui_widgets.cpp"
+        )
+        target_include_directories(imgui PUBLIC "${GMENU_IMGUI_SOURCE_DIR}")
+        target_compile_features(imgui PUBLIC cxx_std_20)
+        set(GMENU_RESOLVED_IMGUI_TARGET imgui)
+    endif()
+
+    if(NOT GMENU_RESOLVED_IMGUI_TARGET)
+        message(FATAL_ERROR
+            "GMENU_WITH_IMGUI=ON requires GMENU_IMGUI_TARGET, imgui, ImGui::ImGui, "
+            "or GMENU_IMGUI_SOURCE_DIR")
+    endif()
+
+    add_library(gmenu_imgui
+        src/imgui.cpp
+    )
+    add_library(gmenu::imgui ALIAS gmenu_imgui)
+    target_link_libraries(gmenu_imgui PUBLIC gmenu::gmenu ${GMENU_RESOLVED_IMGUI_TARGET})
+    target_include_directories(gmenu_imgui
+        PUBLIC
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+            $<INSTALL_INTERFACE:include>
+    )
+    target_compile_features(gmenu_imgui PUBLIC cxx_std_20)
+    gmenu_apply_warnings(gmenu_imgui)
+endif()
 
 if(GMENU_BUILD_EXAMPLES)
     add_executable(gmenu_demo examples/gmenu_demo.cpp)

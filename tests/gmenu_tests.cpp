@@ -2,6 +2,7 @@
 #include "test_common.hpp"
 
 #include <cassert>
+#include <filesystem>
 #include <vector>
 
 namespace {
@@ -195,12 +196,16 @@ void test_nav_overrides() {
     menu.update(gmenu::Input{}, 0.016f, 800, 600);
 
     bool saw_override = false;
+    bool saw_fallback = false;
     for (const gmenu::DrawItem& item : menu.draw_items()) {
         if (item.id == kPlay) {
             saw_override = item.nav_down == kPlay;
+            saw_fallback =
+                item.nav_up == kSettingsButton && item.nav_up_source == gmenu::NavSource::Fallback;
         }
     }
     assert(saw_override);
+    assert(saw_fallback);
 
     gmenu::Input down;
     down.down = true;
@@ -209,6 +214,31 @@ void test_nav_overrides() {
 
     menu.clear_nav_link(kMain, kPlay, gmenu::NavDirection::Down);
     assert(menu.nav_links(kMain, kPlay).down == gmenu::invalid_widget);
+
+    menu.set_nav_link(kMain, kPlay, gmenu::NavDirection::Down, 9999);
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    std::vector<gmenu::NavValidationIssue> issues =
+        menu.validate_nav_overrides(kMain, menu.draw_items());
+    assert(!issues.empty());
+}
+
+void test_nav_persistence() {
+    std::filesystem::path path =
+        std::filesystem::temp_directory_path() / "gmenu_nav_persistence_test.lisp";
+
+    gmenu::Menu menu;
+    menu.set_nav_link(kMain, kPlay, gmenu::NavDirection::Down, kSettingsButton);
+    assert(menu.nav_dirty());
+    assert(menu.save_nav_file(path));
+    menu.mark_nav_saved();
+    assert(!menu.nav_dirty());
+
+    gmenu::Menu loaded;
+    assert(loaded.load_nav_file(path));
+    assert(loaded.nav_links(kMain, kPlay).down == kSettingsButton);
+    assert(!loaded.nav_dirty());
+
+    std::filesystem::remove(path);
 }
 
 void test_ginput_mapping() {
@@ -230,6 +260,7 @@ int main() {
     test_stack_and_commands();
     test_value_widgets_and_text();
     test_nav_overrides();
+    test_nav_persistence();
     test_ginput_mapping();
     return 0;
 }
