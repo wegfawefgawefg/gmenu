@@ -18,7 +18,7 @@ It does not own SDL, rendering, audio, asset loading, or animation systems.
 - label, button, card, toggle, slider, option-cycle, and text-input widget data
 - focus movement and mouse hit testing
 - command callbacks
-- draw/view items with rects, widget state, labels, and style ids
+- draw/view items with rects, widget state, labels, values, and style ids
 - a small `ginput::FrameState` to `gmenu::Input` adapter
 
 Rendering is done by the host program. The host can draw plain rectangles,
@@ -77,6 +77,12 @@ void build_main_menu(gmenu::BuildContext&, gmenu::Screen& out) {
         gmenu::button(SettingsButton, "settings", "Settings", gmenu::Action::push(Settings)));
 }
 ```
+
+`DrawItem::style` is only a stable id. The renderer owns textures, fonts,
+animation state, sounds, and transitions.
+
+Text input is backend-neutral. Put SDL text events, key-repeat backspace events,
+or another backend's text feed into `gmenu::Input::text` and `backspace`.
 
 ## Demo
 

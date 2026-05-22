@@ -68,6 +68,9 @@ struct Widget {
     float min = 0.0f;
     float max = 1.0f;
     float step = 0.1f;
+    int option_count = 0;
+    int* option_index = nullptr;
+    std::vector<std::string> options;
     std::string* text_value = nullptr;
     int text_max_len = 0;
 
@@ -102,6 +105,9 @@ struct Input {
     float mouse_x = 0.0f;
     float mouse_y = 0.0f;
     bool mouse_down = false;
+    std::string text;
+    bool backspace = false;
+    bool delete_word = false;
 };
 
 struct VisualState {
@@ -120,9 +126,9 @@ struct DrawItem {
     WidgetType type = WidgetType::Label;
     glayout::Rect rect;
     StyleId style = default_style;
-    std::string_view label;
-    std::string_view secondary;
-    std::string_view value;
+    std::string label;
+    std::string secondary;
+    std::string value;
     VisualState state;
 };
 

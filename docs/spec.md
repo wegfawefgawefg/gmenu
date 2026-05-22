@@ -32,6 +32,7 @@ base menu runtime should not require config storage.
 - command callbacks
 - text edit state
 - simple value widgets such as toggles and sliders
+- option-cycle values
 - conversion from menu state to renderable `DrawItem` values
 
 ## Non-Responsibilities
@@ -89,6 +90,9 @@ for the first version.
 `gmenu::Input` is backend-neutral. Hosts may fill it manually, or use
 `input_from_ginput` with a `ginput::FrameState`.
 
+Held directional inputs are preserved as held inputs so `gmenu` repeat behavior
+can work. Select/back/page inputs are edge-triggered by the adapter.
+
 Standard menu actions are:
 
 - up
@@ -99,6 +103,24 @@ Standard menu actions are:
 - back
 - page previous
 - page next
+
+Text input is explicit data on `gmenu::Input`. Backends should append printable
+text to `Input::text` and set `Input::backspace` for deletion.
+
+## Widgets
+
+Initial widget set:
+
+- `Label`: non-selectable text
+- `Button`: selectable action
+- `Card`: selectable button with secondary text
+- `Toggle`: selectable bool value
+- `Slider1D`: selectable float value adjusted by left/right/select
+- `OptionCycle`: selectable integer index adjusted by left/right/select
+- `TextInput`: selectable string value that enters editing on select
+
+Widgets may provide explicit navigation ids. If no explicit target exists,
+navigation falls back to selectable widget order.
 
 ## Screen Flow
 

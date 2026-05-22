@@ -2,14 +2,11 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace gmenu {
 
 namespace {
-
-bool point_in_rect(float x, float y, glayout::Rect rect) {
-    return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
-}
 
 float clamp_value(float value, float min, float max) {
     if (min > max) {
@@ -19,49 +16,6 @@ float clamp_value(float value, float min, float max) {
 }
 
 } // namespace
-
-int version_major() {
-    return 0;
-}
-
-Action Action::none() {
-    return {};
-}
-
-Action Action::push(ScreenId id) {
-    Action action;
-    action.type = ActionType::Push;
-    action.screen = id;
-    return action;
-}
-
-Action Action::pop() {
-    Action action;
-    action.type = ActionType::Pop;
-    return action;
-}
-
-Action Action::replace(ScreenId id) {
-    Action action;
-    action.type = ActionType::Replace;
-    action.screen = id;
-    return action;
-}
-
-Action Action::set_root(ScreenId id) {
-    Action action;
-    action.type = ActionType::SetRoot;
-    action.screen = id;
-    return action;
-}
-
-Action Action::command_id(CommandId id, int value) {
-    Action action;
-    action.type = ActionType::Command;
-    action.command = id;
-    action.payload = value;
-    return action;
-}
 
 void Menu::set_layouts(const std::vector<glayout::Layout>* layout_list) {
     layouts = layout_list;
@@ -142,6 +96,7 @@ void Menu::clear() {
     focused = invalid_widget;
     hovered = invalid_widget;
     pressed = invalid_widget;
+    editing = invalid_widget;
     focus_times.clear();
     hover_times.clear();
     press_times.clear();
@@ -210,45 +165,6 @@ Screen Menu::build_current_screen(int width, int height, glayout::FormFactor for
     return screen;
 }
 
-void Menu::rebuild_draw_items(const Screen& screen, int width, int height,
-                              glayout::FormFactor form_factor) {
-    items.clear();
-    const glayout::Layout* layout = nullptr;
-    if (layouts) {
-        layout = glayout::find_best_layout(*layouts, screen.layout_id, width, height, form_factor);
-    }
-
-    for (const Widget& widget : screen.widgets) {
-        DrawItem item;
-        item.id = widget.id;
-        item.type = widget.type;
-        item.style = widget.style;
-        item.label = widget.label;
-        item.secondary = widget.secondary;
-        item.value = widget.value;
-        item.state.focused = widget.id == focused;
-        item.state.hovered = widget.id == hovered;
-        item.state.pressed = widget.id == pressed;
-        item.state.disabled = widget.disabled;
-
-        auto focus_it = focus_times.find(widget.id);
-        auto hover_it = hover_times.find(widget.id);
-        auto press_it = press_times.find(widget.id);
-        item.state.focus_time = focus_it == focus_times.end() ? 0.0f : focus_it->second;
-        item.state.hover_time = hover_it == hover_times.end() ? 0.0f : hover_it->second;
-        item.state.press_time = press_it == press_times.end() ? 0.0f : press_it->second;
-
-        if (layout) {
-            if (const glayout::Object* object = glayout::find_object(*layout, widget.slot)) {
-                item.rect = glayout::map_rect(glayout::Rect{0.0f, 0.0f, static_cast<float>(width),
-                                                            static_cast<float>(height)},
-                                              object->rect);
-            }
-        }
-        items.push_back(item);
-    }
-}
-
 void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
     if (!find_widget(screen, focused) || !is_selectable(*find_widget(screen, focused))) {
         focused = screen.default_focus != invalid_widget ? screen.default_focus
@@ -260,58 +176,76 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
         focused = hovered;
     }
 
-    ginput::RepeatResult up = ginput::update_repeat(input.up, repeat_up, dt);
-    ginput::RepeatResult down = ginput::update_repeat(input.down, repeat_down, dt);
-    ginput::RepeatResult left = ginput::update_repeat(input.left, repeat_left, dt);
-    ginput::RepeatResult right = ginput::update_repeat(input.right, repeat_right, dt);
+    update_text_input(screen, input);
+    const bool text_editing = editing != invalid_widget;
 
-    if (up.trigger) {
-        const Widget* widget = find_widget(screen, focused);
-        if (widget) {
-            focused = resolve_nav(screen, focused, widget->nav_up, -1);
-        }
-    } else if (down.trigger) {
-        const Widget* widget = find_widget(screen, focused);
-        if (widget) {
-            focused = resolve_nav(screen, focused, widget->nav_down, 1);
-        }
-    } else if (left.trigger) {
-        const Widget* widget = find_widget(screen, focused);
-        if (widget && widget->on_left.type != ActionType::None) {
-            execute(widget->on_left);
-        } else if (widget) {
-            focused = resolve_nav(screen, focused, widget->nav_left, -1);
-        }
-    } else if (right.trigger) {
-        const Widget* widget = find_widget(screen, focused);
-        if (widget && widget->on_right.type != ActionType::None) {
-            execute(widget->on_right);
-        } else if (widget) {
-            focused = resolve_nav(screen, focused, widget->nav_right, 1);
+    if (!text_editing) {
+        ginput::RepeatResult up = ginput::update_repeat(input.up, repeat_up, dt);
+        ginput::RepeatResult down = ginput::update_repeat(input.down, repeat_down, dt);
+        ginput::RepeatResult left = ginput::update_repeat(input.left, repeat_left, dt);
+        ginput::RepeatResult right = ginput::update_repeat(input.right, repeat_right, dt);
+
+        if (up.trigger) {
+            const Widget* widget = find_widget(screen, focused);
+            if (widget) {
+                focused = resolve_nav(screen, focused, widget->nav_up, -1);
+            }
+        } else if (down.trigger) {
+            const Widget* widget = find_widget(screen, focused);
+            if (widget) {
+                focused = resolve_nav(screen, focused, widget->nav_down, 1);
+            }
+        } else if (left.trigger) {
+            const Widget* widget = find_widget(screen, focused);
+            if (widget && widget->on_left.type != ActionType::None) {
+                execute(widget->on_left);
+            } else if (widget) {
+                adjust_widget(*widget, -1);
+                if (widget->type != WidgetType::Slider1D &&
+                    widget->type != WidgetType::OptionCycle) {
+                    focused = resolve_nav(screen, focused, widget->nav_left, -1);
+                }
+            }
+        } else if (right.trigger) {
+            const Widget* widget = find_widget(screen, focused);
+            if (widget && widget->on_right.type != ActionType::None) {
+                execute(widget->on_right);
+            } else if (widget) {
+                adjust_widget(*widget, 1);
+                if (widget->type != WidgetType::Slider1D &&
+                    widget->type != WidgetType::OptionCycle) {
+                    focused = resolve_nav(screen, focused, widget->nav_right, 1);
+                }
+            }
         }
     }
 
     const bool mouse_clicked = input.mouse_valid && input.mouse_down && !prev_mouse_down;
+    const bool mouse_released = input.mouse_valid && !input.mouse_down && prev_mouse_down;
     prev_mouse_down = input.mouse_down;
     if (mouse_clicked && hovered != invalid_widget) {
         focused = hovered;
         pressed = hovered;
+    } else if (mouse_released) {
+        const Widget* clicked = find_widget(screen, pressed);
+        if (clicked && hovered == pressed && !text_editing) {
+            activate_widget(*clicked);
+        }
+        pressed = invalid_widget;
     } else if (!input.mouse_down) {
         pressed = invalid_widget;
     }
 
     const Widget* active = find_widget(screen, focused);
-    if (input.select && active && !active->disabled) {
-        if (active->type == WidgetType::Toggle && active->bool_value) {
-            *active->bool_value = !*active->bool_value;
-        } else if (active->type == WidgetType::Slider1D && active->float_value) {
-            *active->float_value =
-                clamp_value(*active->float_value + active->step, active->min, active->max);
-        }
-        execute(active->on_select);
-    } else if (input.back && active && active->on_back.type != ActionType::None) {
+    if (!text_editing && input.select && active && !active->disabled) {
+        activate_widget(*active);
+    } else if (!text_editing && input.page_prev && active) {
+        adjust_widget(*active, -1);
+    } else if (!text_editing && input.page_next && active) {
+        adjust_widget(*active, 1);
+    } else if (!text_editing && input.back && active && active->on_back.type != ActionType::None) {
         execute(active->on_back);
-    } else if (input.back && instances.size() > 1) {
+    } else if (!text_editing && input.back && instances.size() > 1) {
         pop();
     }
 
@@ -331,6 +265,86 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
         } else {
             press_times.erase(widget.id);
         }
+    }
+}
+
+void Menu::update_text_input(const Screen& screen, const Input& input) {
+    const Widget* active = find_widget(screen, editing);
+    if (!active || active->type != WidgetType::TextInput || active->text_value == nullptr) {
+        editing = invalid_widget;
+        return;
+    }
+
+    if (input.back) {
+        editing = invalid_widget;
+        return;
+    }
+
+    if (input.backspace && !active->text_value->empty()) {
+        if (input.delete_word) {
+            while (!active->text_value->empty() && active->text_value->back() == ' ') {
+                active->text_value->pop_back();
+            }
+            while (!active->text_value->empty() && active->text_value->back() != ' ') {
+                active->text_value->pop_back();
+            }
+        } else {
+            active->text_value->pop_back();
+        }
+    }
+
+    if (!input.text.empty()) {
+        std::size_t max_len = std::numeric_limits<std::size_t>::max();
+        if (active->text_max_len > 0) {
+            max_len = static_cast<std::size_t>(active->text_max_len);
+        }
+        for (char ch : input.text) {
+            if (active->text_value->size() >= max_len) {
+                break;
+            }
+            if (ch >= 32 && ch != 127) {
+                active->text_value->push_back(ch);
+            }
+        }
+    }
+}
+
+void Menu::activate_widget(const Widget& widget) {
+    if (widget.disabled) {
+        return;
+    }
+    if (widget.type == WidgetType::Toggle && widget.bool_value) {
+        *widget.bool_value = !*widget.bool_value;
+    } else if (widget.type == WidgetType::Slider1D && widget.float_value) {
+        *widget.float_value =
+            clamp_value(*widget.float_value + widget.step, widget.min, widget.max);
+    } else if (widget.type == WidgetType::OptionCycle) {
+        adjust_widget(widget, 1);
+    } else if (widget.type == WidgetType::TextInput && widget.text_value &&
+               widget.select_enters_text) {
+        editing = widget.id;
+    }
+    execute(widget.on_select);
+}
+
+void Menu::adjust_widget(const Widget& widget, int direction) {
+    if (widget.disabled) {
+        return;
+    }
+    if (widget.type == WidgetType::Slider1D && widget.float_value) {
+        *widget.float_value =
+            clamp_value(*widget.float_value + (widget.step * static_cast<float>(direction)),
+                        widget.min, widget.max);
+    } else if (widget.type == WidgetType::OptionCycle && widget.option_index &&
+               widget.option_count > 0) {
+        int next = *widget.option_index + direction;
+        if (next < 0) {
+            next = widget.option_count - 1;
+        }
+        if (next >= widget.option_count) {
+            next = 0;
+        }
+        *widget.option_index = next;
     }
 }
 
@@ -427,22 +441,6 @@ Widget* Menu::find_widget(Screen& screen, WidgetId id) const {
         }
     }
     return nullptr;
-}
-
-WidgetId Menu::hovered_widget(const Screen& screen, const Input& input) const {
-    if (!input.mouse_valid) {
-        return invalid_widget;
-    }
-    for (const DrawItem& item : items) {
-        if (item.id == invalid_widget || !point_in_rect(input.mouse_x, input.mouse_y, item.rect)) {
-            continue;
-        }
-        const Widget* widget = find_widget(screen, item.id);
-        if (widget && is_selectable(*widget)) {
-            return widget->id;
-        }
-    }
-    return invalid_widget;
 }
 
 bool Menu::is_selectable(const Widget& widget) const {

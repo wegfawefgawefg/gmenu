@@ -16,6 +16,7 @@ struct AppState {
     bool command_ran = false;
     bool fullscreen = false;
     float volume = 0.5f;
+    int quality = 0;
     std::string name = "Player";
 };
 
@@ -48,6 +49,8 @@ void build_settings(gmenu::BuildContext& ctx, gmenu::Screen& out) {
     out.widgets.push_back(gmenu::toggle(20, "play", "Fullscreen", state->fullscreen));
     out.widgets.push_back(
         gmenu::slider_1d(21, "settings", "Volume", state->volume, 0.0f, 1.0f, 0.25f));
+    out.widgets.push_back(
+        gmenu::option_cycle(23, "quality", "Quality", state->quality, {"low", "medium", "high"}));
     out.widgets.push_back(gmenu::text_input(22, "name", "Name", state->name, 32));
     out.widgets.push_back(gmenu::button(kBack, "back", "Back", gmenu::Action::pop()));
 }
@@ -63,6 +66,7 @@ std::vector<glayout::Layout> make_layouts() {
         glayout::Object{2, "settings", glayout::Rect{0.1f, 0.25f, 0.8f, 0.1f}});
     layout.objects.push_back(glayout::Object{3, "name", glayout::Rect{0.1f, 0.4f, 0.8f, 0.1f}});
     layout.objects.push_back(glayout::Object{4, "back", glayout::Rect{0.1f, 0.55f, 0.8f, 0.1f}});
+    layout.objects.push_back(glayout::Object{5, "quality", glayout::Rect{0.1f, 0.7f, 0.8f, 0.1f}});
     return {layout};
 }
 
@@ -102,6 +106,74 @@ void test_stack_and_commands() {
     assert(menu.current_screen() == kMain);
 }
 
+void test_value_widgets_and_text() {
+    AppState state;
+    std::vector<glayout::Layout> layouts = make_layouts();
+    gmenu::Menu menu;
+    menu.set_user_data(&state);
+    menu.set_layouts(&layouts);
+    menu.register_screen(kSettings, build_settings);
+
+    assert(menu.set_root(kSettings));
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    assert(menu.focus() == kBack);
+
+    gmenu::Input mouse_down;
+    mouse_down.mouse_valid = true;
+    mouse_down.mouse_x = 90.0f;
+    mouse_down.mouse_y = 80.0f;
+    mouse_down.mouse_down = true;
+    menu.update(mouse_down, 0.016f, 800, 600);
+
+    gmenu::Input mouse_up = mouse_down;
+    mouse_up.mouse_down = false;
+    menu.update(mouse_up, 0.016f, 800, 600);
+    assert(state.fullscreen);
+
+    gmenu::Input select;
+    select.select = true;
+    menu.update(select, 0.016f, 800, 600);
+    assert(!state.fullscreen);
+
+    gmenu::Input down;
+    down.down = true;
+    menu.update(down, 0.016f, 800, 600);
+    assert(menu.focus() == 21);
+
+    gmenu::Input right;
+    right.right = true;
+    menu.update(right, 0.016f, 800, 600);
+    assert(state.volume == 0.75f);
+
+    menu.update(down, 0.4f, 800, 600);
+    assert(menu.focus() == 23);
+    menu.update(right, 0.016f, 800, 600);
+    assert(state.quality == 1);
+
+    menu.update(down, 0.4f, 800, 600);
+    assert(menu.focus() == 22);
+    menu.update(select, 0.016f, 800, 600);
+    gmenu::Input text;
+    text.text = " One";
+    menu.update(text, 0.016f, 800, 600);
+    assert(state.name == "Player One");
+    text = gmenu::Input{};
+    text.backspace = true;
+    menu.update(text, 0.016f, 800, 600);
+    assert(state.name == "Player On");
+
+    bool saw_editing = false;
+    bool saw_value = false;
+    for (const gmenu::DrawItem& item : menu.draw_items()) {
+        if (item.id == 22) {
+            saw_editing = item.state.editing;
+            saw_value = item.value == "Player On";
+        }
+    }
+    assert(saw_editing);
+    assert(saw_value);
+}
+
 void test_ginput_mapping() {
     ginput::FrameState frame;
     frame.resize_actions(8);
@@ -119,6 +191,7 @@ void test_ginput_mapping() {
 
 int main() {
     test_stack_and_commands();
+    test_value_widgets_and_text();
     test_ginput_mapping();
     return 0;
 }

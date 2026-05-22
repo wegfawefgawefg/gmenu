@@ -13,6 +13,7 @@ constexpr gmenu::ScreenId kProfiles = 3;
 struct DemoState {
     bool fullscreen = false;
     float volume = 0.5f;
+    int quality = 1;
     std::string profile_name = "Default";
     bool quit_requested = false;
 };
@@ -48,7 +49,9 @@ void build_settings(gmenu::BuildContext& ctx, gmenu::Screen& out) {
     out.widgets.push_back(gmenu::toggle(20, "play", "Fullscreen", state->fullscreen));
     out.widgets.push_back(
         gmenu::slider_1d(21, "settings", "Volume", state->volume, 0.0f, 1.0f, 0.1f));
-    out.widgets.push_back(gmenu::button(22, "back", "Back", gmenu::Action::pop()));
+    out.widgets.push_back(
+        gmenu::option_cycle(22, "profiles", "Quality", state->quality, {"low", "medium", "high"}));
+    out.widgets.push_back(gmenu::button(23, "back", "Back", gmenu::Action::pop()));
 }
 
 void build_profiles(gmenu::BuildContext& ctx, gmenu::Screen& out) {
@@ -86,6 +89,9 @@ void print_menu(const gmenu::Menu& menu, const DemoState& state) {
         std::cout << (item.state.focused ? "> " : "  ") << item.label;
         if (!item.secondary.empty()) {
             std::cout << " - " << item.secondary;
+        }
+        if (!item.value.empty()) {
+            std::cout << " [" << item.value << "]";
         }
         std::cout << " rect=(" << item.rect.x << "," << item.rect.y << "," << item.rect.w << ","
                   << item.rect.h << ")\n";

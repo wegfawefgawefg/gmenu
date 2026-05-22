@@ -3,6 +3,7 @@
 #include "gmenu/types.hpp"
 
 #include <string_view>
+#include <vector>
 
 namespace gmenu {
 
@@ -13,6 +14,8 @@ Widget card(WidgetId id, std::string_view slot, std::string_view title, std::str
 Widget toggle(WidgetId id, std::string_view slot, std::string_view text, bool& value);
 Widget slider_1d(WidgetId id, std::string_view slot, std::string_view text, float& value, float min,
                  float max, float step);
+Widget option_cycle(WidgetId id, std::string_view slot, std::string_view text, int& option_index,
+                    std::vector<std::string> options);
 Widget text_input(WidgetId id, std::string_view slot, std::string_view text, std::string& value,
                   int max_len);
 

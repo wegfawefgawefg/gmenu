@@ -47,6 +47,16 @@ Widget slider_1d(WidgetId id, std::string_view slot, std::string_view text, floa
     return widget;
 }
 
+Widget option_cycle(WidgetId id, std::string_view slot, std::string_view text, int& option_index,
+                    std::vector<std::string> options) {
+    Widget widget = button(id, slot, text, Action::none());
+    widget.type = WidgetType::OptionCycle;
+    widget.option_index = &option_index;
+    widget.option_count = static_cast<int>(options.size());
+    widget.options = std::move(options);
+    return widget;
+}
+
 Widget text_input(WidgetId id, std::string_view slot, std::string_view text, std::string& value,
                   int max_len) {
     Widget widget = button(id, slot, text, Action::none());

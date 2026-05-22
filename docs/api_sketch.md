@@ -60,3 +60,28 @@ gmenu::CommandId quit = menu.register_command([](gmenu::BuildContext& ctx, int) 
 ```
 
 Use commands for game-specific work. Use built-in actions for menu flow.
+
+## Value Widgets
+
+```cpp
+out.widgets.push_back(gmenu::toggle(20, "fullscreen", "Fullscreen", settings.fullscreen));
+out.widgets.push_back(
+    gmenu::slider_1d(21, "volume", "Volume", settings.volume, 0.0f, 1.0f, 0.1f));
+out.widgets.push_back(gmenu::option_cycle(22, "quality", "Quality", settings.quality,
+                                          {"low", "medium", "high"}));
+out.widgets.push_back(gmenu::text_input(23, "name", "Profile", profile.name, 32));
+```
+
+`DrawItem::value` contains the current display value for these widgets.
+
+## Text Input
+
+```cpp
+gmenu::Input input;
+input.text = sdl_text_event_text;
+input.backspace = backspace_pressed;
+menu.update(input, dt, width, height);
+```
+
+Text input remains backend-neutral. `gmenu` stores edit focus and modifies the
+bound string. The renderer decides how to draw carets and selection effects.

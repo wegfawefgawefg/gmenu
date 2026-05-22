@@ -60,6 +60,9 @@ class Menu {
     void rebuild_draw_items(const Screen& screen, int width, int height,
                             glayout::FormFactor form_factor);
     void update_focus(const Screen& screen, const Input& input, float dt);
+    void update_text_input(const Screen& screen, const Input& input);
+    void activate_widget(const Widget& widget);
+    void adjust_widget(const Widget& widget, int direction);
     void execute(const Action& action);
     void invoke_command(CommandId id, int payload);
     WidgetId first_selectable(const Screen& screen) const;
@@ -81,6 +84,7 @@ class Menu {
     WidgetId focused = invalid_widget;
     WidgetId hovered = invalid_widget;
     WidgetId pressed = invalid_widget;
+    WidgetId editing = invalid_widget;
     bool prev_mouse_down = false;
     ginput::RepeatState repeat_up;
     ginput::RepeatState repeat_down;
