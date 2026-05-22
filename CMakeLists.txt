@@ -21,7 +21,19 @@ if(NOT TARGET glayout::core)
         set(GLAYOUT_BUILD_EXAMPLES OFF CACHE BOOL "Build glayout examples" FORCE)
         set(GLAYOUT_BUILD_TESTS OFF CACHE BOOL "Build glayout tests" FORCE)
         set(GLAYOUT_BUILD_SDL_DEMO OFF CACHE BOOL "Build glayout SDL demo" FORCE)
-        set(GLAYOUT_WITH_IMGUI OFF CACHE BOOL "Build glayout ImGui helpers" FORCE)
+        if(GMENU_WITH_IMGUI)
+            set(GLAYOUT_WITH_IMGUI ON CACHE BOOL "Build glayout ImGui helpers" FORCE)
+            if(GMENU_IMGUI_TARGET)
+                set(GLAYOUT_IMGUI_TARGET "${GMENU_IMGUI_TARGET}" CACHE STRING
+                    "Dear ImGui CMake target for optional ImGui helpers" FORCE)
+            endif()
+            if(GMENU_IMGUI_SOURCE_DIR)
+                set(GLAYOUT_IMGUI_SOURCE_DIR "${GMENU_IMGUI_SOURCE_DIR}" CACHE PATH
+                    "Optional Dear ImGui source tree used to create an imgui target" FORCE)
+            endif()
+        else()
+            set(GLAYOUT_WITH_IMGUI OFF CACHE BOOL "Build glayout ImGui helpers" FORCE)
+        endif()
         add_subdirectory("${GMENU_GLAYOUT_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/_deps/glayout")
     else()
         message(FATAL_ERROR
@@ -156,6 +168,43 @@ if(GMENU_BUILD_SDL_DEMO)
         add_executable(gmenu_sdl_demo examples/sdl_demo/main.cpp)
         target_link_libraries(gmenu_sdl_demo PRIVATE gmenu::gmenu ${GMENU_SDL3_TARGET})
         target_compile_features(gmenu_sdl_demo PRIVATE cxx_std_20)
+
+        set(GMENU_SDL_DEMO_IMGUI_BACKENDS_AVAILABLE OFF)
+        if(GMENU_IMGUI_SOURCE_DIR)
+            set(GMENU_IMGUI_SDL3_BACKEND "${GMENU_IMGUI_SOURCE_DIR}/backends/imgui_impl_sdl3.cpp")
+            set(GMENU_IMGUI_SDLRENDERER3_BACKEND
+                "${GMENU_IMGUI_SOURCE_DIR}/backends/imgui_impl_sdlrenderer3.cpp")
+            if(EXISTS "${GMENU_IMGUI_SDL3_BACKEND}" AND EXISTS "${GMENU_IMGUI_SDLRENDERER3_BACKEND}")
+                set(GMENU_SDL_DEMO_IMGUI_BACKENDS_AVAILABLE ON)
+            endif()
+        endif()
+
+        if(GMENU_WITH_IMGUI AND TARGET gmenu::imgui AND TARGET glayout::imgui AND
+                GMENU_SDL_DEMO_IMGUI_BACKENDS_AVAILABLE)
+            if(MSVC)
+                set_source_files_properties(
+                    "${GMENU_IMGUI_SDL3_BACKEND}"
+                    "${GMENU_IMGUI_SDLRENDERER3_BACKEND}"
+                    PROPERTIES COMPILE_OPTIONS /w)
+            else()
+                set_source_files_properties(
+                    "${GMENU_IMGUI_SDL3_BACKEND}"
+                    "${GMENU_IMGUI_SDLRENDERER3_BACKEND}"
+                    PROPERTIES COMPILE_OPTIONS -w)
+            endif()
+            target_sources(gmenu_sdl_demo PRIVATE
+                examples/sdl_demo/imgui_debug.cpp
+                "${GMENU_IMGUI_SDL3_BACKEND}"
+                "${GMENU_IMGUI_SDLRENDERER3_BACKEND}"
+            )
+            target_include_directories(gmenu_sdl_demo PRIVATE
+                "${GMENU_IMGUI_SOURCE_DIR}"
+                "${GMENU_IMGUI_SOURCE_DIR}/backends"
+            )
+            target_link_libraries(gmenu_sdl_demo PRIVATE gmenu::imgui glayout::imgui)
+            target_compile_definitions(gmenu_sdl_demo PRIVATE GMENU_SDL_DEMO_WITH_IMGUI=1)
+        endif()
+
         gmenu_apply_warnings(gmenu_sdl_demo)
     else()
         message(STATUS "SDL3 not found; skipping gmenu_sdl_demo")

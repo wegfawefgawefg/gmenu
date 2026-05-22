@@ -138,6 +138,12 @@ add_subdirectory(third_party/gmenu)
 target_link_libraries(my_game PRIVATE gmenu::gmenu gmenu::imgui)
 ```
 
+The SDL demo also enables ImGui debug windows when `GMENU_WITH_IMGUI=ON` and
+`GMENU_IMGUI_SOURCE_DIR` points at a Dear ImGui checkout with the SDL3 backend
+sources. The demo exposes menu metadata, layout metadata, the `glayout` editor,
+and the `gmenu` nav editor. The core `gmenu::gmenu` target does not depend on
+ImGui.
+
 Text input is backend-neutral. Put SDL text events, key-repeat backspace events,
 or another backend's text feed into `gmenu::Input::text` and `backspace`.
 
@@ -183,9 +189,11 @@ VS Code F5 runs the SDL3 demo when SDL3 is available.
 
 Demo controls:
 
-- `F1`: edit `glayout` slots. Drag rectangles; use `Z`/`Y` for undo/redo,
+- `Ctrl+L`: edit `glayout` slots. Drag rectangles; use `Z`/`Y` for undo/redo,
   `C`/`V` for copy/paste, and delete/backspace to remove a slot.
-- `F2`: edit `gmenu` navigation. Click a source widget, press an arrow for the
+- `Ctrl+N`: edit `gmenu` navigation. Click a source widget, press an arrow for the
   direction, then click a target widget. Backspace clears the armed direction;
   delete clears links for the selected source. `S` saves nav overrides to
   `gmenu_nav_demo.lisp`; `L` reloads them.
+- `F10`: toggle ImGui debug windows in ImGui-enabled demo builds. `F9` toggles
+  the small debug bar.

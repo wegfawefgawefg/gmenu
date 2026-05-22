@@ -61,9 +61,12 @@ The consuming game owns policy.
 - `gmenu` stores nav overrides keyed by screen id and widget id.
 - `gmenu` can save and load nav overrides as S-expression files.
 - `gmenu::imgui` provides an optional nav editor/debug panel.
-- The SDL demo has an F1 `glayout` core edit overlay for one in-memory layout.
-- The SDL demo has an F2 nav editor that can select a source widget, arm a
+- The SDL demo has a `Ctrl+L` `glayout` core edit overlay for one in-memory layout.
+- The SDL demo has a `Ctrl+N` nav editor that can select a source widget, arm a
   direction, click a target widget, and clear links.
+- ImGui-enabled SDL demo builds expose a debug bar, menu metadata, layout
+  metadata, the `glayout` editor, and the `gmenu` nav editor. `F10` toggles the
+  debug layer and `F9` toggles the bar.
 
 This is now enough to prove the library boundary: `glayout` edits slots and
 `gmenu` edits widget navigation. It is not the full gubsy editor surface yet.

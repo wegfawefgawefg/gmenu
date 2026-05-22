@@ -1,6 +1,14 @@
 #include "glayout/editor.hpp"
 #include "gmenu/gmenu.hpp"
 
+#if defined(GMENU_SDL_DEMO_WITH_IMGUI)
+#include "imgui_debug.hpp"
+
+#include <backends/imgui_impl_sdl3.h>
+#include <backends/imgui_impl_sdlrenderer3.h>
+#include <imgui.h>
+#endif
+
 #include <SDL3/SDL.h>
 #include <algorithm>
 #include <cstdio>
@@ -456,14 +464,24 @@ void draw_item(SDL_Renderer* renderer, const gmenu::DrawItem& item) {
     }
 }
 
-void apply_key(SDL_Keycode key, bool down, HeldInput& held, gmenu::Input& input,
+void apply_key(SDL_Keycode key, SDL_Keymod mod, bool down, HeldInput& held, gmenu::Input& input,
                glayout::EditorInput& editor_input, DemoToggles& toggles, NavEditState& nav_editor) {
+    const bool ctrl = (mod & SDL_KMOD_CTRL) != 0;
     switch (key) {
     case SDLK_F1:
         if (down) {
             toggles.layout_edit = !toggles.layout_edit;
             if (toggles.layout_edit) {
                 toggles.nav_overlay = false;
+            }
+            held = {};
+        }
+        break;
+    case SDLK_N:
+        if (down && ctrl) {
+            toggles.nav_overlay = !toggles.nav_overlay;
+            if (toggles.nav_overlay) {
+                toggles.layout_edit = false;
             }
             held = {};
         }
@@ -576,7 +594,13 @@ void apply_key(SDL_Keycode key, bool down, HeldInput& held, gmenu::Input& input,
         }
         break;
     case SDLK_L:
-        if (down && toggles.nav_overlay) {
+        if (down && ctrl) {
+            toggles.layout_edit = !toggles.layout_edit;
+            if (toggles.layout_edit) {
+                toggles.nav_overlay = false;
+            }
+            held = {};
+        } else if (down && toggles.nav_overlay) {
             nav_editor.load_requested = true;
         }
         break;
@@ -610,6 +634,14 @@ int main(int, char**) {
         return 1;
     }
     SDL_StartTextInput(window);
+
+#if defined(GMENU_SDL_DEMO_WITH_IMGUI)
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+    ImGui_ImplSDL3_InitForSDLRenderer(window, renderer);
+    ImGui_ImplSDLRenderer3_Init(renderer);
+#endif
 
     DemoState state;
     init_input_demo(state);
@@ -769,6 +801,9 @@ int main(int, char**) {
     glayout::EditorState layout_editor;
     NavEditState nav_editor;
     DemoToggles toggles;
+#if defined(GMENU_SDL_DEMO_WITH_IMGUI)
+    DemoDebugUi debug_ui;
+#endif
     bool running = true;
     Uint64 last_ticks = SDL_GetTicks();
 
@@ -777,17 +812,50 @@ int main(int, char**) {
         glayout::EditorInput editor_input;
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
+#if defined(GMENU_SDL_DEMO_WITH_IMGUI)
+            ImGui_ImplSDL3_ProcessEvent(&event);
+#endif
             if (event.type == SDL_EVENT_QUIT) {
                 running = false;
             } else if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
                 const bool down = event.type == SDL_EVENT_KEY_DOWN;
-                apply_key(event.key.key, down, held, input, editor_input, toggles, nav_editor);
+                const bool debug_key = event.key.key == SDLK_F9 || event.key.key == SDLK_F10;
+#if defined(GMENU_SDL_DEMO_WITH_IMGUI)
+                if (down && event.key.key == SDLK_F10) {
+                    debug_ui.enabled = !debug_ui.enabled;
+                }
+                if (down && event.key.key == SDLK_F9 && debug_ui.enabled) {
+                    debug_ui.bar_visible = !debug_ui.bar_visible;
+                }
+                const bool imgui_wants_keyboard = ImGui::GetIO().WantCaptureKeyboard;
+                if (!debug_key && imgui_wants_keyboard) {
+                    continue;
+                }
+#else
+                (void)debug_key;
+#endif
+                apply_key(event.key.key, event.key.mod, down, held, input, editor_input, toggles,
+                          nav_editor);
                 editor_input.ctrl = (event.key.mod & SDL_KMOD_CTRL) != 0;
                 editor_input.shift = (event.key.mod & SDL_KMOD_SHIFT) != 0;
             } else if (event.type == SDL_EVENT_TEXT_INPUT) {
+#if defined(GMENU_SDL_DEMO_WITH_IMGUI)
+                if (ImGui::GetIO().WantCaptureKeyboard) {
+                    continue;
+                }
+#endif
                 input.text += event.text.text;
             }
         }
+
+#if defined(GMENU_SDL_DEMO_WITH_IMGUI)
+        ImGui_ImplSDLRenderer3_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
+        ImGui::NewFrame();
+        const bool imgui_wants_mouse = ImGui::GetIO().WantCaptureMouse;
+#else
+        const bool imgui_wants_mouse = false;
+#endif
 
         input.up = held.up;
         input.down = held.down;
@@ -812,10 +880,11 @@ int main(int, char**) {
         input.mouse_x = mouse_x;
         input.mouse_y = mouse_y;
         const bool left_mouse_down = (buttons & SDL_BUTTON_LMASK) != 0;
-        input.mouse_down = !toggles.layout_edit && !toggles.nav_overlay && left_mouse_down;
+        input.mouse_down =
+            !toggles.layout_edit && !toggles.nav_overlay && !imgui_wants_mouse && left_mouse_down;
         editor_input.mouse_x = mouse_x;
         editor_input.mouse_y = mouse_y;
-        editor_input.left_down = toggles.layout_edit && left_mouse_down;
+        editor_input.left_down = toggles.layout_edit && !imgui_wants_mouse && left_mouse_down;
 
         int width = 0;
         int height = 0;
@@ -824,7 +893,14 @@ int main(int, char**) {
         float dt = static_cast<float>(now - last_ticks) / 1000.0f;
         last_ticks = now;
         if (toggles.layout_edit && !layout_store.layouts.empty()) {
-            glayout::editor_begin_frame(layout_editor, layout_store.layouts.front(), editor_input,
+            int layout_index = 0;
+#if defined(GMENU_SDL_DEMO_WITH_IMGUI)
+            layout_index = std::clamp(debug_ui.selected_layout, 0,
+                                      static_cast<int>(layout_store.layouts.size()) - 1);
+#endif
+            glayout::Layout& active_layout =
+                layout_store.layouts[static_cast<std::size_t>(layout_index)];
+            glayout::editor_begin_frame(layout_editor, active_layout, editor_input,
                                         glayout::Viewport{
                                             0.0f,
                                             0.0f,
@@ -837,8 +913,8 @@ int main(int, char**) {
             }
         }
         menu.update(input, dt, width, height);
-        const bool nav_clicked =
-            toggles.nav_overlay && left_mouse_down && !nav_editor.mouse_was_down;
+        const bool nav_clicked = toggles.nav_overlay && !imgui_wants_mouse && left_mouse_down &&
+                                 !nav_editor.mouse_was_down;
         nav_editor.mouse_was_down = left_mouse_down;
         if (nav_clicked) {
             const gmenu::DrawItem* hit = find_draw_item_at(menu.draw_items(), mouse_x, mouse_y);
@@ -904,7 +980,13 @@ int main(int, char**) {
             draw_item(renderer, item);
         }
         if (toggles.layout_edit && !layout_store.layouts.empty()) {
-            draw_layout_overlay(renderer, layout_editor, layout_store.layouts.front(), width,
+            int layout_index = 0;
+#if defined(GMENU_SDL_DEMO_WITH_IMGUI)
+            layout_index = std::clamp(debug_ui.selected_layout, 0,
+                                      static_cast<int>(layout_store.layouts.size()) - 1);
+#endif
+            draw_layout_overlay(renderer, layout_editor,
+                                layout_store.layouts[static_cast<std::size_t>(layout_index)], width,
                                 height);
         }
         if (toggles.nav_overlay) {
@@ -913,10 +995,10 @@ int main(int, char**) {
         set_color(renderer, 155, 170, 185);
         if (toggles.layout_edit) {
             draw_text(renderer, 18.0f, static_cast<float>(height) - 44.0f,
-                      "F1 layout edit ON: drag rectangles, Z/Y undo/redo, C/V "
+                      "Ctrl+L layout edit ON: drag rectangles, Z/Y undo/redo, C/V "
                       "copy/paste, delete remove");
         } else if (toggles.nav_overlay) {
-            std::string nav_text = "F2 nav edit ON: click source";
+            std::string nav_text = "Ctrl+N nav edit ON: click source";
             if (nav_editor.source != gmenu::invalid_widget) {
                 nav_text += " #" + std::to_string(nav_editor.source) + ", arrow chooses direction";
             }
@@ -930,12 +1012,25 @@ int main(int, char**) {
             draw_text(renderer, 18.0f, static_cast<float>(height) - 44.0f, nav_text);
         }
         draw_text(renderer, 18.0f, static_cast<float>(height) - 28.0f,
-                  "F1 layout edit, F2 nav edit, arrows navigate, enter select/edit, esc back, "
-                  "q/e page; nav S save/L load; binds add fake keys only; status: " +
+                  "Ctrl+L layout edit, Ctrl+N nav edit, F10 ImGui debug, arrows navigate, enter "
+                  "select/edit, esc back, q/e page; nav S save/L load; status: " +
                       state.save_status);
+
+#if defined(GMENU_SDL_DEMO_WITH_IMGUI)
+        if (render_demo_debug_ui(debug_ui, menu, layout_store, layout_editor)) {
+            menu.update(gmenu::Input{}, 0.0f, width, height);
+        }
+        ImGui::Render();
+        ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer);
+#endif
         SDL_RenderPresent(renderer);
     }
 
+#if defined(GMENU_SDL_DEMO_WITH_IMGUI)
+    ImGui_ImplSDLRenderer3_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
+#endif
     SDL_StopTextInput(window);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
