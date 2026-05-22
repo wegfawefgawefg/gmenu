@@ -45,6 +45,9 @@ void test_canned_screens() {
     menu.set_layouts(&layouts);
     gmenu::register_list_screen(menu, main_def);
     gmenu::register_basic_screen(menu, profile_def);
+    assert(menu.registered_screens().size() == 2);
+    assert(menu.registered_screens()[0].id == 50);
+    assert(menu.registered_screens()[1].id == 51);
 
     assert(menu.set_root(50));
     menu.update(gmenu::Input{}, 0.016f, 800, 600);

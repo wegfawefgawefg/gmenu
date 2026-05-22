@@ -23,6 +23,7 @@ behavior.
 - draw items with rects, labels, values, style ids, and nav metadata
 - nav override storage, save/load, dirty state, and validation
 - optional ImGui menu metadata and nav editor panels
+- registered-screen metadata for debug/editor screen pickers
 - data-backed list, paged-list, profile-list, settings, and binds screens
 - composed-row helper that emits normal widgets and nav links
 
@@ -175,8 +176,8 @@ editing.
 
 - The ImGui nav editor is functional but not yet as comfortable as gubsy's
   editor. It now has selected-widget inspection, selectable effective-nav rows,
-  and clearer validation tables. It still needs better screen selection once
-  `Menu` exposes enough registered-screen metadata to do that cleanly.
+  clearer validation tables, and a registered-screen picker that can jump the
+  menu root to another screen.
 
 - The combined menu editor should present layout editing and nav editing as one
   tool, while still delegating rectangle edits to `glayout`.
@@ -209,8 +210,9 @@ editing.
    richer demo/gubsy-style screens before adding new widget fields.
 
 5. Keep improving ImGui nav/menu editor.
-   Selected-widget inspection and clearer validation are implemented. Add a
-   proper screen picker after exposing registered-screen metadata from `Menu`.
+   Selected-widget inspection, clearer validation, and registered-screen root
+   jumping are implemented. Keep improving the combined editor flow as the demo
+   grows.
 
 6. Wire a gubsy-like demo screen.
    Prove profile, settings, binds, and mixed sub-widget rows can be rebuilt

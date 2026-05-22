@@ -60,6 +60,26 @@ bool direction_combo(NavDirection& direction) {
     return changed;
 }
 
+bool screen_combo(const char* label, ScreenId& value, std::span<const ScreenDef> screens) {
+    std::string preview = value == invalid_screen ? "None" : ("#" + std::to_string(value));
+    bool changed = false;
+    if (ImGui::BeginCombo(label, preview.c_str())) {
+        if (ImGui::Selectable("None", value == invalid_screen)) {
+            value = invalid_screen;
+            changed = true;
+        }
+        for (const ScreenDef& screen : screens) {
+            std::string name = "#" + std::to_string(screen.id);
+            if (ImGui::Selectable(name.c_str(), value == screen.id)) {
+                value = screen.id;
+                changed = true;
+            }
+        }
+        ImGui::EndCombo();
+    }
+    return changed;
+}
+
 const DrawItem* find_item(std::span<const DrawItem> items, WidgetId id) {
     for (const DrawItem& item : items) {
         if (item.id == id) {
@@ -144,6 +164,30 @@ bool render_nav_editor(Menu& menu, NavEditorState& editor, ScreenId screen,
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.25f, 1.0f), "%zu issue(s)", issues.size());
     }
+
+    if (editor.selected_screen == invalid_screen) {
+        editor.selected_screen = screen;
+    }
+    ImGui::SeparatorText("Screen");
+    screen_combo("Registered screen", editor.selected_screen, menu.registered_screens());
+    const bool can_open_screen =
+        editor.selected_screen != invalid_screen && editor.selected_screen != menu.current_screen();
+    if (!can_open_screen) {
+        ImGui::BeginDisabled();
+    }
+    if (ImGui::Button("Set root")) {
+        if (menu.set_root(editor.selected_screen)) {
+            editor.source = invalid_widget;
+            editor.target = invalid_widget;
+            screen = editor.selected_screen;
+            changed = true;
+        }
+    }
+    if (!can_open_screen) {
+        ImGui::EndDisabled();
+    }
+    ImGui::SameLine();
+    ImGui::Text("Current: #%u", menu.current_screen());
 
     selectable_widget_combo("Source", editor.source, items);
     direction_combo(editor.direction);

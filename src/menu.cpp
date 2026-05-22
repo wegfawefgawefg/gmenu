@@ -152,6 +152,10 @@ std::span<const ScreenId> Menu::stack() const {
     return public_stack;
 }
 
+std::span<const ScreenDef> Menu::registered_screens() const {
+    return screens;
+}
+
 WidgetId Menu::focus() const {
     return focused;
 }

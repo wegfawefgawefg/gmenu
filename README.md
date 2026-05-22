@@ -152,6 +152,14 @@ authored links. If no link exists for a direction, that direction does nothing.
 `DrawItem` reports both the effective nav target and whether it came from a
 saved override or an explicit widget link.
 
+Registered screen metadata is available for debug tools:
+
+```cpp
+for (const gmenu::ScreenDef& screen : menu.registered_screens()) {
+    show_screen_button(screen.id);
+}
+```
+
 Nav overrides can be saved as S-expressions:
 
 ```cpp

@@ -52,6 +52,7 @@ class Menu {
 
     std::span<const DrawItem> draw_items() const;
     std::span<const ScreenId> stack() const;
+    std::span<const ScreenDef> registered_screens() const;
     WidgetId focus() const;
     ScreenId current_screen() const;
     void* user_data() const;

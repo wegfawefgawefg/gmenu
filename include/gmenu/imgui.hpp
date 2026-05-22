@@ -7,6 +7,7 @@ namespace gmenu::imgui {
 struct NavEditorState {
     WidgetId source = invalid_widget;
     WidgetId target = invalid_widget;
+    ScreenId selected_screen = invalid_screen;
     NavDirection direction = NavDirection::Down;
     int selected_override = -1;
 };
