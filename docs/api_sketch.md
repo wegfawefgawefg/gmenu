@@ -29,6 +29,14 @@ gmenu::register_list_screen(menu, main);
 
 The screen definition must outlive the menu.
 
+Debug tools can inspect registered screens without taking ownership:
+
+```cpp
+for (const gmenu::ScreenDef& screen : menu.registered_screens()) {
+    show_screen(screen.id);
+}
+```
+
 Paged lists use caller-owned page state:
 
 ```cpp
@@ -224,6 +232,27 @@ out.widgets.push_back(gmenu::text_input(23, "name", "Profile", profile.name, 32)
 
 `DrawItem::value` contains the current display value for these widgets.
 
+`DrawItem::controls` contains common interaction sub-rects such as slider tracks
+and option-cycle left/right/value regions. Renderers can draw from the same
+rects that `gmenu` uses for hit testing.
+
+## Composed Rows
+
+Use normal widgets for rows with multiple controls:
+
+```cpp
+gmenu::ComposedRowDef row;
+row.nav_up = Volume;
+row.nav_down = Back;
+row.widgets.push_back(gmenu::text_input(Width, "resolution_w", "Width", width_text, 5));
+row.widgets.push_back(gmenu::text_input(Height, "resolution_h", "Height", height_text, 5));
+row.widgets.push_back(gmenu::button(Apply, "resolution_apply", "Apply", apply_action));
+gmenu::append_composed_row(out, std::move(row));
+```
+
+This avoids compound widgets with multiple hidden edit states. Each child is a
+normal widget with its own id, slot, focus, nav, and action behavior.
+
 ## Text Input
 
 ```cpp
@@ -235,3 +264,10 @@ menu.update(input, dt, width, height);
 
 Text input remains backend-neutral. `gmenu` stores edit focus and modifies the
 bound string. The renderer decides how to draw carets and selection effects.
+
+## ImGui Nav Editor
+
+The optional `gmenu::imgui` target provides a nav editor/debug panel. It can
+inspect registered screens, jump the menu root to a selected screen, edit nav
+links for the current screen, and request nav save/load through
+`NavEditorState`. The host still owns file paths and persistence policy.

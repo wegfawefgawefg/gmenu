@@ -31,6 +31,7 @@ work on caller-owned data. Persisting that data belongs to the host or `gconfig`
 - directional navigation
 - mouse hover and rectangular click hit testing
 - command callbacks
+- internal feedback events with optional post-update hooks
 - text edit state
 - simple value widgets such as toggles and sliders
 - option-cycle values
@@ -64,6 +65,7 @@ The host renders `DrawItem` however it wants.
 - label/value text
 - focused, hovered, pressed, disabled, and editing state
 - time-in-state fields for renderer-owned animation
+- interaction control rects for slider tracks and option-cycle sub-regions
 
 The renderer owns visual interpretation. A focused button can be a plain color,
 sprite swap, fade, slide, neon flicker, or anything else.
@@ -123,8 +125,15 @@ Initial widget set:
 - `OptionCycle`: selectable integer index adjusted by left/right/select
 - `TextInput`: selectable string value that enters editing on select
 
-Widgets may provide explicit navigation ids. If no explicit target exists,
-navigation falls back to selectable widget order.
+Widgets may provide explicit navigation ids. Reusable screen builders may author
+simple nav links for generated lists, but runtime navigation does not guess a
+fallback. If no effective link exists for a direction, that direction is
+rejected.
+
+Rows that need multiple controls should use normal widgets plus
+`append_composed_row`, not extra fields on one widget. This keeps text inputs,
+buttons, sliders, and option cycles independently focusable while still making
+common rows easy to author.
 
 ## Reusable Screen Builders
 
@@ -163,6 +172,10 @@ action that should be edited, remove existing button binds, and dispatch a host
 command with the `ginput::ActionId` as payload when a new bind should be
 captured. The host can open a capture screen appropriate to its backend.
 
+`Menu::registered_screens()` exposes read-only registered screen metadata for
+debug/editor tools. It is not an ownership API; screen definition data still
+belongs to the caller.
+
 ## Screen Flow
 
 The menu has a stack because Gubsy already uses one and drill-down menus need it.
@@ -193,7 +206,8 @@ to copy directly. The extraction should avoid:
 
 The current reusable screens cover main/list pages, paged save/profile/mod-style
 lists, typed settings pages, profile pickers, and input-bind overview/edit
-pages. The host still owns policy-heavy behavior:
+pages. The host can compose richer rows from ordinary widgets. It still owns
+policy-heavy behavior:
 
 - saving settings/profile changes to disk
 - creating/deleting profiles

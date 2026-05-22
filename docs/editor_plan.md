@@ -60,7 +60,9 @@ The consuming game owns policy.
   and nav source tags.
 - `gmenu` stores nav overrides keyed by screen id and widget id.
 - `gmenu` can save and load nav overrides as S-expression files.
-- `gmenu::imgui` provides an optional nav editor/debug panel.
+- `gmenu::imgui` provides an optional nav editor/debug panel with registered
+  screen selection, root jumping, selected-widget inspection, validation tables,
+  and save/load requests.
 - The SDL demo has a `Ctrl+L` `glayout` core edit overlay for one in-memory layout.
 - The SDL demo has a `Ctrl+N` nav editor that can select a source widget, arm a
   direction, click a target widget, and clear links.
@@ -80,17 +82,16 @@ See [gubsy_gap_list.md](gubsy_gap_list.md) for the detailed parity checklist.
    - Keep it independent from menus and SDL/ImGui where possible.
    - Provide draw data and optional ImGui helpers.
 
-2. Tighten nav validation.
-   - Report diagnostics for links pointing at missing widgets.
-   - Show disabled/hidden targets distinctly.
-   - Add tests for scoped nav records.
-
-3. Add a combined menu editor surface.
-   - Screen picker.
+2. Add a combined menu editor surface.
    - Active layout/variant picker.
    - Layout edit tab backed by `glayout`.
    - Nav edit tab backed by `gmenu`.
    - Widget debug/properties tab.
+   - Host-owned save/load actions for layout and nav files.
+
+3. Tighten advanced nav validation.
+   - Show disabled/hidden targets distinctly if hidden widget support is added.
+   - Add broader tests for scoped nav records.
 
 4. Wire gubsy against the library.
    - Keep gubsy menu builders and policies in gubsy.
