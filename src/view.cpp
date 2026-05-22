@@ -1,5 +1,6 @@
 #include "gmenu/menu.hpp"
 
+#include <algorithm>
 #include <cstdio>
 
 namespace gmenu {
@@ -37,6 +38,39 @@ std::string widget_value_text(const Widget& widget) {
         return *widget.text_value;
     }
     return {};
+}
+
+ControlRects control_rects(const Widget& widget, glayout::Rect rect) {
+    ControlRects controls;
+    if (widget.type == WidgetType::Slider1D) {
+        const float pad_x = rect.w * 0.08f;
+        const float track_h = std::min(rect.h * 0.45f, 24.0f);
+        controls.has_slider_track = true;
+        controls.slider_track = glayout::Rect{
+            rect.x + pad_x,
+            rect.y + rect.h - track_h - 8.0f,
+            std::max(1.0f, rect.w - (pad_x * 2.0f)),
+            track_h,
+        };
+    } else if (widget.type == WidgetType::OptionCycle) {
+        const float button_w = std::min(rect.w * 0.12f, 44.0f);
+        const float button_h = std::min(rect.h * 0.45f, 26.0f);
+        const float spacing = 6.0f;
+        const float y = rect.y + rect.h - button_h - 10.0f;
+        const float right_x = rect.x + rect.w - button_w - 12.0f;
+        controls.has_option_right = true;
+        controls.option_right = glayout::Rect{right_x, y, button_w, button_h};
+        controls.has_option_left = true;
+        controls.option_left = glayout::Rect{right_x - button_w - spacing, y, button_w, button_h};
+        controls.has_option_value = true;
+        controls.option_value = glayout::Rect{
+            rect.x + 14.0f,
+            y,
+            std::max(1.0f, controls.option_left.x - rect.x - 20.0f),
+            button_h,
+        };
+    }
+    return controls;
 }
 
 } // namespace
@@ -91,6 +125,7 @@ void Menu::rebuild_draw_items(const Screen& screen, int width, int height,
                                               object->rect);
             }
         }
+        item.controls = control_rects(widget, item.rect);
         items.push_back(item);
     }
 }

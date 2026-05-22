@@ -15,6 +15,10 @@ float clamp_value(float value, float min, float max) {
     return std::clamp(value, min, max);
 }
 
+bool contains(glayout::Rect rect, float x, float y) {
+    return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+}
+
 } // namespace
 
 void Menu::set_layouts(const std::vector<glayout::Layout>* layout_list) {
@@ -108,6 +112,7 @@ void Menu::clear() {
     hovered = invalid_widget;
     pressed = invalid_widget;
     editing = invalid_widget;
+    slider_dragging = invalid_widget;
     editing_start_value.clear();
     allow_mouse_focus = true;
     mouse_focus_locked = false;
@@ -292,27 +297,56 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
     if (mouse_clicked && hovered != invalid_widget) {
         focused = hovered;
         pressed = hovered;
-    } else if (mouse_released) {
-        const Widget* clicked = find_widget(screen, pressed);
-        if (clicked && hovered == pressed) {
-            if (!text_editing) {
-                if (clicked->type == WidgetType::Slider1D) {
-                    set_slider_from_mouse(*clicked, input);
-                } else {
-                    activate_widget(*clicked);
-                }
-            } else if (clicked->id != editing) {
-                const Widget* edited = find_widget(screen, editing);
-                if (edited) {
-                    finish_text_edit(*edited, true);
-                } else {
-                    editing = invalid_widget;
-                    editing_start_value.clear();
-                }
-                activate_widget(*clicked);
+        const Widget* clicked = find_widget(screen, hovered);
+        const DrawItem* item = find_draw_item(hovered);
+        if (clicked && item) {
+            const ControlPart part = hit_control_part(*item, input.mouse_x, input.mouse_y);
+            if (clicked->type == WidgetType::Slider1D && part == ControlPart::SliderTrack) {
+                slider_dragging = clicked->id;
+                set_slider_from_mouse(*clicked, input.mouse_x, false);
             }
         }
-        pressed = invalid_widget;
+    } else if (mouse_released) {
+        if (slider_dragging != invalid_widget) {
+            const Widget* dragging = find_widget(screen, slider_dragging);
+            if (dragging) {
+                set_slider_from_mouse(*dragging, input.mouse_x, true);
+            }
+            slider_dragging = invalid_widget;
+            pressed = invalid_widget;
+        } else {
+            const Widget* clicked = find_widget(screen, pressed);
+            if (clicked && hovered == pressed) {
+                if (!text_editing) {
+                    const DrawItem* item = find_draw_item(clicked->id);
+                    const ControlPart part =
+                        item ? hit_control_part(*item, input.mouse_x, input.mouse_y)
+                             : ControlPart::Body;
+                    if (clicked->type == WidgetType::Slider1D) {
+                        activate_control_part(*clicked, part, input.mouse_x);
+                    } else if (clicked->type == WidgetType::OptionCycle) {
+                        activate_control_part(*clicked, part, input.mouse_x);
+                    } else {
+                        activate_widget(*clicked);
+                    }
+                } else if (clicked->id != editing) {
+                    const Widget* edited = find_widget(screen, editing);
+                    if (edited) {
+                        finish_text_edit(*edited, true);
+                    } else {
+                        editing = invalid_widget;
+                        editing_start_value.clear();
+                    }
+                    activate_widget(*clicked);
+                }
+            }
+            pressed = invalid_widget;
+        }
+    } else if (input.mouse_down && slider_dragging != invalid_widget) {
+        const Widget* dragging = find_widget(screen, slider_dragging);
+        if (dragging) {
+            set_slider_from_mouse(*dragging, input.mouse_x, false);
+        }
     } else if (!input.mouse_down) {
         pressed = invalid_widget;
     }
@@ -432,10 +466,11 @@ void Menu::activate_widget(const Widget& widget) {
     if (widget.type == WidgetType::Toggle && widget.bool_value) {
         *widget.bool_value = !*widget.bool_value;
     } else if (widget.type == WidgetType::Slider1D && widget.float_value) {
-        *widget.float_value =
-            clamp_value(*widget.float_value + widget.step, widget.min, widget.max);
+        adjust_widget(widget, 1);
+        activated = false;
     } else if (widget.type == WidgetType::OptionCycle) {
         adjust_widget(widget, 1);
+        activated = false;
     } else if (widget.type == WidgetType::TextInput && widget.text_value &&
                widget.select_enters_text) {
         editing = widget.id;
@@ -476,36 +511,32 @@ void Menu::adjust_widget(const Widget& widget, int direction) {
     if (adjusted) {
         record_widget_feedback(
             direction < 0 ? FeedbackType::AdjustedLeft : FeedbackType::AdjustedRight, widget.id);
+        execute(widget.on_commit);
     } else {
         record_widget_feedback(FeedbackType::Rejected, widget.id);
     }
 }
 
-void Menu::set_slider_from_mouse(const Widget& widget, const Input& input) {
-    if (widget.disabled || widget.type != WidgetType::Slider1D || !widget.float_value ||
-        !input.mouse_valid) {
+void Menu::set_slider_from_mouse(const Widget& widget, float mouse_x, bool commit) {
+    if (widget.disabled || widget.type != WidgetType::Slider1D || !widget.float_value) {
         return;
     }
 
-    glayout::Rect rect;
-    bool found = false;
-    for (const DrawItem& item : items) {
-        if (item.id == widget.id) {
-            rect = item.rect;
-            found = true;
-            break;
-        }
-    }
-    if (!found || rect.w <= 0.0f) {
+    const DrawItem* item = find_draw_item(widget.id);
+    if (!item || !item->controls.has_slider_track || item->controls.slider_track.w <= 0.0f) {
         return;
     }
 
-    float ratio = (input.mouse_x - rect.x) / rect.w;
+    float ratio = (mouse_x - item->controls.slider_track.x) / item->controls.slider_track.w;
     ratio = std::clamp(ratio, 0.0f, 1.0f);
     const float before = *widget.float_value;
     *widget.float_value = widget.min + ((widget.max - widget.min) * ratio);
     if (*widget.float_value != before) {
-        record_widget_feedback(FeedbackType::Activated, widget.id);
+        record_widget_feedback(
+            ratio < 0.5f ? FeedbackType::AdjustedLeft : FeedbackType::AdjustedRight, widget.id);
+    }
+    if (commit) {
+        execute(widget.on_commit);
     }
 }
 
@@ -613,6 +644,64 @@ bool Menu::is_selectable(const Widget& widget) const {
         return false;
     }
     return widget.type != WidgetType::Label;
+}
+
+const DrawItem* Menu::find_draw_item(WidgetId id) const {
+    for (const DrawItem& item : items) {
+        if (item.id == id) {
+            return &item;
+        }
+    }
+    return nullptr;
+}
+
+ControlPart Menu::hit_control_part(const DrawItem& item, float x, float y) const {
+    if (item.controls.has_slider_track && contains(item.controls.slider_track, x, y)) {
+        return ControlPart::SliderTrack;
+    }
+    if (item.controls.has_option_left && contains(item.controls.option_left, x, y)) {
+        return ControlPart::OptionLeft;
+    }
+    if (item.controls.has_option_right && contains(item.controls.option_right, x, y)) {
+        return ControlPart::OptionRight;
+    }
+    if (item.controls.has_option_value && contains(item.controls.option_value, x, y)) {
+        return ControlPart::OptionValue;
+    }
+    if (contains(item.rect, x, y)) {
+        return ControlPart::Body;
+    }
+    return ControlPart::None;
+}
+
+void Menu::activate_control_part(const Widget& widget, ControlPart part, float mouse_x) {
+    if (part == ControlPart::SliderTrack && widget.type == WidgetType::Slider1D) {
+        set_slider_from_mouse(widget, mouse_x, true);
+        return;
+    }
+    if (part == ControlPart::OptionLeft && widget.type == WidgetType::OptionCycle) {
+        if (widget.on_left.type != ActionType::None) {
+            record_widget_feedback(FeedbackType::AdjustedLeft, widget.id);
+            execute(widget.on_left);
+        } else {
+            adjust_widget(widget, -1);
+        }
+        return;
+    }
+    if (part == ControlPart::OptionRight && widget.type == WidgetType::OptionCycle) {
+        if (widget.on_right.type != ActionType::None) {
+            record_widget_feedback(FeedbackType::AdjustedRight, widget.id);
+            execute(widget.on_right);
+        } else {
+            adjust_widget(widget, 1);
+        }
+        return;
+    }
+    if (part == ControlPart::OptionValue && widget.type == WidgetType::OptionCycle) {
+        activate_widget(widget);
+        return;
+    }
+    activate_widget(widget);
 }
 
 void Menu::lock_mouse_focus(const Input& input) {

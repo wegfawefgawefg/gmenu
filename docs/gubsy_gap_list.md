@@ -17,7 +17,7 @@ behavior.
 - command callbacks with integer payloads
 - internal feedback events flushed to optional callbacks after update
 - page previous and page next inputs
-- mouse hover, click, and basic slider mouse setting
+- mouse hover, click, slider drag preview/commit, and option-cycle hit regions
 - mouse focus lock/unlock after keyboard/gamepad navigation
 - visual state for focus, hover, press, disabled, and text editing
 - draw items with rects, labels, values, style ids, and nav metadata
@@ -44,13 +44,13 @@ These belong in `gmenu` because they affect behavior, not just drawing.
   mouse moves or clicks.
 
 - Rich slider mouse behavior.
-  Gubsy separates track drag preview from commit, supports dragging while held,
-  and commits on release. `gmenu` has simpler click-to-set behavior.
+  `gmenu` separates track drag preview from commit, supports dragging while
+  held, and commits through `Widget::on_commit` on release.
 
 - Option-cycle hit regions.
-  Gubsy can distinguish left button, right button, value area, and embedded text
-  input regions inside an option widget. `gmenu` currently treats the widget
-  more coarsely.
+  `gmenu` exposes left button, right button, and value hit rects through
+  `DrawItem::controls`. Embedded text input should still be modeled as a
+  separate widget or composed-row helper, not as another field on option-cycle.
 
 - Text edit commit behavior.
   `gmenu` now has `Widget::on_commit` for modified text input commit. This needs
@@ -58,8 +58,8 @@ These belong in `gmenu` because they affect behavior, not just drawing.
 
 - Rejection and movement feedback.
   Gubsy plays focus, confirm, cant, left, and right sounds from menu behavior.
-  `gmenu` now reports this through optional feedback callbacks, but richer
-  slider/option-cycle interaction will add more cases.
+  `gmenu` reports this through optional feedback callbacks, including richer
+  slider and option-cycle adjustment cases.
 
 - Per-widget activation policy.
   Gubsy has `select_enters_text` and `play_select_sound`. `select_enters_text`
@@ -162,6 +162,11 @@ Current recommendation: keep `gmenu::Widget` and `gmenu::DrawItem` boring.
 Expose ids, rects, state, labels, values, and feedback hooks. Let the game
 renderer own rich presentation data.
 
+`DrawItem::controls` is interaction geometry, not renderer style. It exists so
+the renderer and input code can agree on ordinary sub-regions such as slider
+tracks and option-cycle left/right/value regions without adding gubsy-specific
+compound widget fields.
+
 ## Editor And Debug Gaps
 
 These are not blockers for runtime menus, but they matter for gubsy-style live
@@ -192,9 +197,10 @@ editing.
    This is implemented for keyboard/gamepad navigation and should remain covered
    as richer pointer interactions are added.
 
-3. Rework slider and option-cycle interaction.
-   Preserve simple use, but expose enough draw/event state for gubsy-style
-   renderers.
+3. Keep slider and option-cycle interaction covered.
+   Slider drag preview/commit and option-cycle left/right/value regions are now
+   implemented. Preserve this behavior while composed rows and richer demos are
+   added.
 
 4. Add composed-row helpers.
    Generate multiple ordinary widgets for rows that need multiple controls.

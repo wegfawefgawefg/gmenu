@@ -445,7 +445,10 @@ void draw_item(SDL_Renderer* renderer, const gmenu::DrawItem& item) {
         draw_text(renderer, rect.x + 14.0f, rect.y + 34.0f, item.secondary);
     }
     if (item.type == gmenu::WidgetType::Slider1D) {
-        SDL_FRect track{rect.x + 14.0f, rect.y + rect.h - 16.0f, rect.w - 28.0f, 5.0f};
+        SDL_FRect track =
+            item.controls.has_slider_track
+                ? to_sdl(item.controls.slider_track)
+                : SDL_FRect{rect.x + 14.0f, rect.y + rect.h - 16.0f, rect.w - 28.0f, 5.0f};
         set_color(renderer, 20, 30, 40);
         SDL_RenderFillRect(renderer, &track);
         SDL_FRect fill = track;
@@ -455,6 +458,27 @@ void draw_item(SDL_Renderer* renderer, const gmenu::DrawItem& item) {
         }
         set_color(renderer, 235, 184, 63);
         SDL_RenderFillRect(renderer, &fill);
+    }
+    if (item.type == gmenu::WidgetType::OptionCycle) {
+        if (item.controls.has_option_value) {
+            SDL_FRect value = to_sdl(item.controls.option_value);
+            set_color(renderer, 24, 37, 53);
+            SDL_RenderFillRect(renderer, &value);
+        }
+        if (item.controls.has_option_left) {
+            SDL_FRect left = to_sdl(item.controls.option_left);
+            set_color(renderer, 20, 30, 40);
+            SDL_RenderFillRect(renderer, &left);
+            set_color(renderer, 248, 248, 238);
+            draw_text(renderer, left.x + 12.0f, left.y + 5.0f, "<");
+        }
+        if (item.controls.has_option_right) {
+            SDL_FRect right = to_sdl(item.controls.option_right);
+            set_color(renderer, 20, 30, 40);
+            SDL_RenderFillRect(renderer, &right);
+            set_color(renderer, 248, 248, 238);
+            draw_text(renderer, right.x + 12.0f, right.y + 5.0f, ">");
+        }
     }
     if (!item.value.empty()) {
         draw_text(renderer, rect.x + rect.w - 160.0f, rect.y + 14.0f, item.value);

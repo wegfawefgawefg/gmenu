@@ -65,6 +65,26 @@ enum class FeedbackType : std::uint8_t {
     TextEditEnded,
 };
 
+enum class ControlPart : std::uint8_t {
+    None,
+    Body,
+    SliderTrack,
+    OptionLeft,
+    OptionRight,
+    OptionValue,
+};
+
+struct ControlRects {
+    bool has_slider_track = false;
+    glayout::Rect slider_track;
+    bool has_option_left = false;
+    glayout::Rect option_left;
+    bool has_option_right = false;
+    glayout::Rect option_right;
+    bool has_option_value = false;
+    glayout::Rect option_value;
+};
+
 struct FeedbackEvent {
     FeedbackType type = FeedbackType::Rejected;
     WidgetId widget = invalid_widget;
@@ -221,6 +241,7 @@ struct DrawItem {
     WidgetId nav_down = invalid_widget;
     WidgetId nav_left = invalid_widget;
     WidgetId nav_right = invalid_widget;
+    ControlRects controls;
     NavSource nav_up_source = NavSource::None;
     NavSource nav_down_source = NavSource::None;
     NavSource nav_left_source = NavSource::None;

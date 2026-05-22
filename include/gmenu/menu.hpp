@@ -88,7 +88,7 @@ class Menu {
     void finish_text_edit(const Widget& widget, bool run_commit);
     void activate_widget(const Widget& widget);
     void adjust_widget(const Widget& widget, int direction);
-    void set_slider_from_mouse(const Widget& widget, const Input& input);
+    void set_slider_from_mouse(const Widget& widget, float mouse_x, bool commit);
     void execute(const Action& action);
     void invoke_command(CommandId id, int payload);
     WidgetId first_selectable(const Screen& screen) const;
@@ -102,6 +102,9 @@ class Menu {
     Widget* find_widget(Screen& screen, WidgetId id) const;
     WidgetId hovered_widget(const Screen& screen, const Input& input) const;
     bool is_selectable(const Widget& widget) const;
+    const DrawItem* find_draw_item(WidgetId id) const;
+    ControlPart hit_control_part(const DrawItem& item, float x, float y) const;
+    void activate_control_part(const Widget& widget, ControlPart part, float mouse_x);
     void lock_mouse_focus(const Input& input);
     void ensure_mouse_focus_lock(const Input& input);
     void unlock_mouse_focus_if_moved(const Input& input);
@@ -128,6 +131,7 @@ class Menu {
     WidgetId hovered = invalid_widget;
     WidgetId pressed = invalid_widget;
     WidgetId editing = invalid_widget;
+    WidgetId slider_dragging = invalid_widget;
     std::string editing_start_value;
     bool prev_mouse_down = false;
     bool allow_mouse_focus = true;

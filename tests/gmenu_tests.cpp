@@ -13,6 +13,9 @@ constexpr gmenu::ScreenId kSettings = 2;
 constexpr gmenu::WidgetId kPlay = 10;
 constexpr gmenu::WidgetId kSettingsButton = 11;
 constexpr gmenu::WidgetId kBack = 12;
+constexpr gmenu::ScreenId kInteraction = 3;
+constexpr gmenu::WidgetId kDragSlider = 30;
+constexpr gmenu::WidgetId kMouseOption = 31;
 
 void command_mark(gmenu::BuildContext& ctx, int payload) {
     (void)payload;
@@ -63,6 +66,22 @@ void build_settings(gmenu::BuildContext& ctx, gmenu::Screen& out) {
     out.widgets[3].nav_up = 23;
     out.widgets[3].nav_down = kBack;
     out.widgets[4].nav_up = 22;
+}
+
+void build_interaction(gmenu::BuildContext& ctx, gmenu::Screen& out) {
+    auto* state = static_cast<gmenu_test::AppState*>(ctx.user);
+    out.id = kInteraction;
+    out.layout_id = 100;
+    out.default_focus = kDragSlider;
+    gmenu::Widget slider =
+        gmenu::slider_1d(kDragSlider, "settings", "Volume", state->volume, 0.0f, 1.0f, 0.01f);
+    slider.on_commit = gmenu::Action::command_id(g_commit_command);
+    slider.nav_down = kMouseOption;
+    out.widgets.push_back(std::move(slider));
+    gmenu::Widget option = gmenu::option_cycle(kMouseOption, "quality", "Quality", state->quality,
+                                               {"low", "medium", "high"});
+    option.nav_up = kDragSlider;
+    out.widgets.push_back(std::move(option));
 }
 
 void test_stack_and_commands() {
@@ -364,6 +383,71 @@ void test_mouse_focus_lock() {
     assert(menu.focus() == kSettingsButton);
 }
 
+void test_slider_drag_and_option_hit_regions() {
+    gmenu_test::AppState state;
+    std::vector<glayout::Layout> layouts = gmenu_test::make_layouts();
+    gmenu::Menu menu;
+    menu.set_user_data(&state);
+    menu.set_layouts(&layouts);
+    g_commit_count = 0;
+    g_commit_command = menu.register_command(command_commit);
+    menu.register_screen(kInteraction, build_interaction);
+
+    assert(menu.set_root(kInteraction));
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+
+    const gmenu::DrawItem* slider = nullptr;
+    const gmenu::DrawItem* option = nullptr;
+    for (const gmenu::DrawItem& item : menu.draw_items()) {
+        if (item.id == kDragSlider) {
+            slider = &item;
+        } else if (item.id == kMouseOption) {
+            option = &item;
+        }
+    }
+    assert(slider && slider->controls.has_slider_track);
+    assert(option && option->controls.has_option_left && option->controls.has_option_right &&
+           option->controls.has_option_value);
+    const gmenu::ControlRects slider_controls = slider->controls;
+    const gmenu::ControlRects option_controls = option->controls;
+
+    gmenu::Input drag;
+    drag.mouse_valid = true;
+    drag.mouse_x = slider_controls.slider_track.x + slider_controls.slider_track.w * 0.25f;
+    drag.mouse_y = slider_controls.slider_track.y + slider_controls.slider_track.h * 0.5f;
+    drag.mouse_down = true;
+    menu.update(drag, 0.016f, 800, 600);
+    assert(state.volume > 0.24f && state.volume < 0.26f);
+    assert(g_commit_count == 0);
+
+    drag.mouse_x = slider_controls.slider_track.x + slider_controls.slider_track.w * 0.80f;
+    menu.update(drag, 0.016f, 800, 600);
+    assert(state.volume > 0.79f && state.volume < 0.81f);
+    assert(g_commit_count == 0);
+
+    drag.mouse_down = false;
+    menu.update(drag, 0.016f, 800, 600);
+    assert(g_commit_count == 1);
+
+    gmenu::Input click;
+    click.mouse_valid = true;
+    click.mouse_x = option_controls.option_right.x + option_controls.option_right.w * 0.5f;
+    click.mouse_y = option_controls.option_right.y + option_controls.option_right.h * 0.5f;
+    click.mouse_down = true;
+    menu.update(click, 0.016f, 800, 600);
+    click.mouse_down = false;
+    menu.update(click, 0.016f, 800, 600);
+    assert(state.quality == 1);
+
+    click.mouse_x = option_controls.option_left.x + option_controls.option_left.w * 0.5f;
+    click.mouse_y = option_controls.option_left.y + option_controls.option_left.h * 0.5f;
+    click.mouse_down = true;
+    menu.update(click, 0.016f, 800, 600);
+    click.mouse_down = false;
+    menu.update(click, 0.016f, 800, 600);
+    assert(state.quality == 0);
+}
+
 void test_nav_overrides() {
     gmenu_test::AppState state;
     std::vector<glayout::Layout> layouts = gmenu_test::make_layouts();
@@ -443,6 +527,7 @@ int main() {
     test_value_widgets_and_text();
     test_feedback_hooks();
     test_mouse_focus_lock();
+    test_slider_drag_and_option_hit_regions();
     test_nav_overrides();
     test_nav_persistence();
     test_ginput_mapping();

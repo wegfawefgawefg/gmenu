@@ -23,6 +23,7 @@ It does not own SDL, rendering, audio, asset loading, or animation systems.
 - typed settings screen builder
 - paged profile list screen builder
 - draw/view items with rects, widget state, labels, values, and style ids
+- control hit rects for slider tracks and option-cycle sub-regions
 - explicit nav override storage for editor-authored focus links
 - optional `gmenu::imgui` helpers for nav editing/debugging
 - a small `ginput::FrameState` to `gmenu::Input` adapter
@@ -111,8 +112,10 @@ gmenu::register_list_screen(menu, main);
 Screen definition objects passed to `register_basic_screen` and
 `register_list_screen` must outlive the `Menu`.
 
-`DrawItem::style` is only a stable id. The renderer owns textures, fonts,
-animation state, sounds, and transitions.
+`DrawItem::style` is only a stable id. `DrawItem::controls` is interaction
+geometry for ordinary sub-regions such as slider tracks and option-cycle
+left/right/value areas. The renderer owns textures, fonts, animation state,
+sounds, and transitions.
 
 Commands are direct callbacks for app actions. Feedback is reported through
 optional hooks after `Menu::update` finishes, so sounds and debug reactions stay
