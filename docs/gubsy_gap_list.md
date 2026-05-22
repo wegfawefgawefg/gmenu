@@ -1,7 +1,8 @@
 # Gubsy Gap List
 
-This document tracks what `gmenu` still needs before gubsy can be rebuilt on
-top of the ripped-out libraries without copying the old menu spaghetti.
+This document tracks what `gmenu` needs for gubsy-style menu parity and records
+the current decisions that keep the extracted library smaller than the old menu
+spaghetti.
 
 The goal is capability parity, not field-for-field parity. If a gubsy feature
 was mostly render decoration, it should usually stay out of core widget
@@ -36,7 +37,7 @@ behavior.
 - grid snapping, undo, redo, dirty state, and save requests
 - SDL overlay draw data and optional ImGui editor/browser panels
 
-## Core Interaction Gaps
+## Core Interaction Coverage
 
 These belong in `gmenu` because they affect behavior, not just drawing.
 
@@ -108,11 +109,10 @@ struct FeedbackHooks {
 };
 ```
 
-## Widget Model Gaps
+## Widget Model Decisions
 
-These need design before implementation. The old gubsy shape worked, but it
-mixed visual decoration, sub-controls, and behavior into one large widget
-record.
+The old gubsy shape worked, but it mixed visual decoration, sub-controls, and
+behavior into one large widget record. `gmenu` keeps these decisions explicit.
 
 - Avoid super compound widgets.
   Do not recreate the gubsy pattern where one widget record accumulates badges,
@@ -137,13 +137,13 @@ record.
   widget really needs two text edit states. Prefer composed rows first.
 
 - Discrete slider options.
-  Decide whether this is an option-cycle, a slider with step buttons, or a
-  composed row. Avoid adding a vague `has_discrete_options` flag until the
-  behavior is clear.
+  Use an option-cycle for named discrete values. Use a composed row for a slider
+  with separate step buttons or editable value fields. Do not add a vague
+  `has_discrete_options` flag to the core widget.
 
 - Placeholder text.
-  This is harmless display metadata for text inputs, but it may belong in
-  renderer-side metadata unless common helpers need it.
+  Placeholder text stays renderer/app metadata unless a reusable helper proves
+  it is needed in the core draw model.
 
 ## Renderer Metadata Gaps
 
@@ -169,21 +169,20 @@ the renderer and input code can agree on ordinary sub-regions such as slider
 tracks and option-cycle left/right/value regions without adding gubsy-specific
 compound widget fields.
 
-## Editor And Debug Gaps
+## Editor And Debug Coverage
 
 These are not blockers for runtime menus, but they matter for gubsy-style live
 editing.
 
-- The ImGui nav editor is functional but not yet as comfortable as gubsy's
-  editor. It now has selected-widget inspection, selectable effective-nav rows,
-  clearer validation tables, and a registered-screen picker that can jump the
-  menu root to another screen. It can also request nav override save/load while
-  leaving file ownership to the host.
+- The ImGui nav editor has selected-widget inspection, selectable effective-nav
+  rows, clearer validation tables, and a registered-screen picker that can jump
+  the menu root to another screen. It can also request nav override save/load
+  while leaving file ownership to the host.
 
-- The combined menu editor should present layout editing and nav editing as one
-  tool, while still delegating rectangle edits to `glayout`. The ImGui demo now
-  has a combined editor window with menu/layout/nav tabs; the layout tab opens
-  the `glayout` editor and the nav tab embeds the `gmenu` nav editor panel.
+- The combined menu editor presents layout editing and nav editing as one tool,
+  while still delegating rectangle edits to `glayout`. The ImGui demo has a
+  combined editor window with menu/layout/nav tabs; the layout tab opens the
+  `glayout` editor and the nav tab embeds the `gmenu` nav editor panel.
 
 - Layout persistence is library-ready and demonstrated with host-owned paths.
   The SDL demo loads/saves `gmenu_layouts_demo.lisp` through `glayout` and
@@ -193,7 +192,7 @@ editing.
 
 - Video/resolution debug belongs in the renderer/config layer, not in `gmenu`.
 
-## Likely Next Implementation Order
+## Maintenance Guidelines
 
 1. Extend feedback coverage as richer interactions are added.
    The core feedback API exists for focus moved, activated, rejected, adjusted
@@ -218,7 +217,7 @@ editing.
    jumping are implemented. The demo has a combined editor shell with
    menu/layout/nav tabs. Keep improving it as the demo grows.
 
-6. Wire a gubsy-like demo screen.
+6. Keep the gubsy-like demo representative.
    The SDL demo covers profile editing/picking, settings, input binds, and a
    mixed composed resolution row without adding gubsy-specific fields to core
    widgets. Keep expanding this as real gubsy migration finds missing cases.
