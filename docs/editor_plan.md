@@ -67,8 +67,9 @@ The consuming game owns policy.
 - The SDL demo has a `Ctrl+N` nav editor that can select a source widget, arm a
   direction, click a target widget, and clear links.
 - ImGui-enabled SDL demo builds expose a debug bar, menu metadata, layout
-  metadata, the `glayout` editor, and the `gmenu` nav editor. `F10` toggles the
-  debug layer and `F9` toggles the bar.
+  metadata, the `glayout` editor, the `gmenu` nav editor, and a combined editor
+  window with menu/layout/nav tabs. `F10` toggles the debug layer and `F9`
+  toggles the bar.
 
 This is now enough to prove the library boundary: `glayout` edits slots and
 `gmenu` edits widget navigation. It is not the full gubsy editor surface yet.
@@ -82,12 +83,13 @@ See [gubsy_gap_list.md](gubsy_gap_list.md) for the detailed parity checklist.
    - Keep it independent from menus and SDL/ImGui where possible.
    - Provide draw data and optional ImGui helpers.
 
-2. Add a combined menu editor surface.
-   - Active layout/variant picker.
-   - Layout edit tab backed by `glayout`.
-   - Nav edit tab backed by `gmenu`.
-   - Widget debug/properties tab.
-   - Host-owned save/load actions for layout and nav files.
+2. Keep improving the combined menu editor surface.
+   - The demo now has menu/layout/nav tabs.
+   - Layout tab delegates rectangle editing to the `glayout` editor.
+   - Nav tab embeds the `gmenu` nav editor panel.
+   - Host-owned save/load actions are wired for nav files.
+   - A fuller widget properties tab can be added once real gubsy integration
+     needs more than current draw-item inspection.
 
 3. Tighten advanced nav validation.
    - Show disabled/hidden targets distinctly if hidden widget support is added.

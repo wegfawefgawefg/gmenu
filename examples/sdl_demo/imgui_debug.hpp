@@ -13,6 +13,7 @@ struct DemoDebugUi {
     bool show_layout_metadata = false;
     bool show_layout_editor = false;
     bool show_nav_editor = false;
+    bool show_combined_editor = false;
     int selected_layout = 0;
     gmenu::imgui::NavEditorState nav_editor;
 };

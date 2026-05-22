@@ -181,7 +181,9 @@ editing.
   leaving file ownership to the host.
 
 - The combined menu editor should present layout editing and nav editing as one
-  tool, while still delegating rectangle edits to `glayout`.
+  tool, while still delegating rectangle edits to `glayout`. The ImGui demo now
+  has a combined editor window with menu/layout/nav tabs; the layout tab opens
+  the `glayout` editor and the nav tab embeds the `gmenu` nav editor panel.
 
 - Layout persistence is library-ready but demo-level. A real gubsy integration
   needs host-owned save paths and save commands wired through cleanly.
@@ -212,8 +214,8 @@ editing.
 
 5. Keep improving ImGui nav/menu editor.
    Selected-widget inspection, clearer validation, and registered-screen root
-   jumping are implemented. Keep improving the combined editor flow as the demo
-   grows.
+   jumping are implemented. The demo has a combined editor shell with
+   menu/layout/nav tabs. Keep improving it as the demo grows.
 
 6. Wire a gubsy-like demo screen.
    Prove profile, settings, binds, and mixed sub-widget rows can be rebuilt

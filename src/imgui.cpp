@@ -146,13 +146,21 @@ void render_selected_widget(NavEditorState& editor, std::span<const DrawItem> it
 
 bool render_nav_editor(Menu& menu, NavEditorState& editor, ScreenId screen,
                        std::span<const DrawItem> items) {
-    bool changed = false;
-
     ImGui::SetNextWindowSize(ImVec2(520.0f, 420.0f), ImGuiCond_FirstUseEver);
     if (!ImGui::Begin("gmenu: Navigation")) {
         ImGui::End();
         return false;
     }
+
+    const bool changed = render_nav_editor_panel(menu, editor, screen, items);
+
+    ImGui::End();
+    return changed;
+}
+
+bool render_nav_editor_panel(Menu& menu, NavEditorState& editor, ScreenId screen,
+                             std::span<const DrawItem> items) {
+    bool changed = false;
 
     if (menu.nav_dirty()) {
         ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Dirty");
@@ -308,7 +316,6 @@ bool render_nav_editor(Menu& menu, NavEditorState& editor, ScreenId screen,
         ImGui::TextUnformatted("No nav validation issues for the current screen.");
     }
 
-    ImGui::End();
     return changed;
 }
 

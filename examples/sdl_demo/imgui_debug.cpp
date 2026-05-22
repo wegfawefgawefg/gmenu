@@ -4,6 +4,8 @@
 
 #include "glayout/imgui.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <imgui.h>
 #include <string>
 
@@ -58,17 +60,13 @@ void render_debug_bar(DemoDebugUi& debug) {
     ImGui::Checkbox("Layout editor", &debug.show_layout_editor);
     ImGui::SameLine();
     ImGui::Checkbox("Nav editor", &debug.show_nav_editor);
+    ImGui::SameLine();
+    ImGui::Checkbox("Combined editor", &debug.show_combined_editor);
 
     ImGui::End();
 }
 
-void render_menu_metadata(gmenu::Menu& menu, bool& open) {
-    ImGui::SetNextWindowSize(ImVec2(760.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("gmenu: Menu Metadata", &open)) {
-        ImGui::End();
-        return;
-    }
-
+void render_menu_metadata_panel(gmenu::Menu& menu) {
     ImGui::Text("Current screen: %u", menu.current_screen());
     ImGui::Text("Focus: %u", menu.focus());
     ImGui::Text("Draw items: %zu", menu.draw_items().size());
@@ -126,8 +124,65 @@ void render_menu_metadata(gmenu::Menu& menu, bool& open) {
 
         ImGui::EndTable();
     }
+}
+
+void render_menu_metadata(gmenu::Menu& menu, bool& open) {
+    ImGui::SetNextWindowSize(ImVec2(760.0f, 420.0f), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("gmenu: Menu Metadata", &open)) {
+        ImGui::End();
+        return;
+    }
+
+    render_menu_metadata_panel(menu);
+    ImGui::End();
+}
+
+bool render_combined_editor(DemoDebugUi& debug, gmenu::Menu& menu,
+                            glayout::LayoutStore& layout_store,
+                            glayout::EditorState& layout_editor) {
+    bool changed = false;
+    ImGui::SetNextWindowSize(ImVec2(860.0f, 580.0f), ImGuiCond_FirstUseEver);
+    if (!ImGui::Begin("gmenu: Combined Editor", &debug.show_combined_editor)) {
+        ImGui::End();
+        return false;
+    }
+
+    if (ImGui::BeginTabBar("combined_editor_tabs")) {
+        if (ImGui::BeginTabItem("Menu")) {
+            render_menu_metadata_panel(menu);
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Layout")) {
+            ImGui::TextUnformatted("Layout rectangles are edited by glayout.");
+            ImGui::Checkbox("Show glayout editor window", &debug.show_layout_editor);
+            ImGui::SameLine();
+            ImGui::Checkbox("Show layout metadata", &debug.show_layout_metadata);
+            if (!layout_store.layouts.empty()) {
+                debug.selected_layout = std::clamp(
+                    debug.selected_layout, 0, static_cast<int>(layout_store.layouts.size()) - 1);
+                const glayout::Layout& layout =
+                    layout_store.layouts[static_cast<std::size_t>(debug.selected_layout)];
+                ImGui::Text("Selected layout: #%d %s", layout.id, layout.label.c_str());
+                ImGui::Text("Objects: %zu", layout.objects.size());
+                if (layout_editor.dirty) {
+                    ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Layout dirty");
+                }
+            } else {
+                ImGui::TextUnformatted("No layouts loaded.");
+            }
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("Navigation")) {
+            changed = gmenu::imgui::render_nav_editor_panel(
+                          menu, debug.nav_editor, menu.current_screen(), menu.draw_items()) ||
+                      changed;
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
 
     ImGui::End();
+    return changed;
 }
 
 } // namespace
@@ -157,6 +212,9 @@ bool render_demo_debug_ui(DemoDebugUi& debug, gmenu::Menu& menu, glayout::Layout
         changed = gmenu::imgui::render_nav_editor(menu, debug.nav_editor, menu.current_screen(),
                                                   menu.draw_items()) ||
                   changed;
+    }
+    if (debug.show_combined_editor) {
+        changed = render_combined_editor(debug, menu, layout_store, layout_editor) || changed;
     }
 
     return changed;

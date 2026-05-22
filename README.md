@@ -180,9 +180,9 @@ target_link_libraries(my_game PRIVATE gmenu::gmenu gmenu::imgui)
 The SDL demo also enables ImGui debug windows when `GMENU_WITH_IMGUI=ON` and
 `GMENU_IMGUI_SOURCE_DIR` points at a Dear ImGui checkout with the SDL3 backend
 sources. The demo exposes menu metadata, layout metadata, the `glayout` editor,
-and the `gmenu` nav editor. The nav editor can request save/load through
-`NavEditorState`; the host owns the actual file path. The core `gmenu::gmenu`
-target does not depend on ImGui.
+the `gmenu` nav editor, and a combined editor window with menu/layout/nav tabs.
+The nav editor can request save/load through `NavEditorState`; the host owns
+the actual file path. The core `gmenu::gmenu` target does not depend on ImGui.
 
 Text input is backend-neutral. Put SDL text events, key-repeat backspace events,
 or another backend's text feed into `gmenu::Input::text` and `backspace`.

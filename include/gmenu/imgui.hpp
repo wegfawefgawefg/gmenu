@@ -16,5 +16,7 @@ struct NavEditorState {
 
 bool render_nav_editor(Menu& menu, NavEditorState& editor, ScreenId screen,
                        std::span<const DrawItem> items);
+bool render_nav_editor_panel(Menu& menu, NavEditorState& editor, ScreenId screen,
+                             std::span<const DrawItem> items);
 
 } // namespace gmenu::imgui
