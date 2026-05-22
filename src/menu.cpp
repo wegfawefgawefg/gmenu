@@ -109,9 +109,17 @@ void Menu::update(const Input& input, float dt, int width, int height,
         return;
     }
 
+    const ScreenId before = current_screen();
     Screen screen = build_current_screen(width, height, form_factor);
     rebuild_draw_items(screen, width, height, form_factor);
     update_focus(screen, input, dt);
+    if (instances.empty()) {
+        items.clear();
+        return;
+    }
+    if (current_screen() != before) {
+        screen = build_current_screen(width, height, form_factor);
+    }
     rebuild_draw_items(screen, width, height, form_factor);
 }
 

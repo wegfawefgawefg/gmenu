@@ -99,11 +99,15 @@ void test_stack_and_commands() {
     menu.update(select, 0.016f, 800, 600);
     assert(menu.current_screen() == kSettings);
     assert(menu.stack().size() == 2);
+    assert(menu.draw_items().size() == 5);
+    assert(menu.draw_items()[0].label == "Fullscreen");
 
     gmenu::Input back;
     back.back = true;
     menu.update(back, 0.016f, 800, 600);
     assert(menu.current_screen() == kMain);
+    assert(menu.draw_items().size() == 2);
+    assert(menu.draw_items()[0].label == "Play");
 }
 
 void test_value_widgets_and_text() {
