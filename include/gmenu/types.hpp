@@ -55,6 +55,34 @@ enum class NavSource : std::uint8_t {
     Override,
 };
 
+enum class FeedbackType : std::uint8_t {
+    FocusMoved,
+    Activated,
+    Rejected,
+    AdjustedLeft,
+    AdjustedRight,
+    TextEditStarted,
+    TextEditEnded,
+};
+
+struct FeedbackEvent {
+    FeedbackType type = FeedbackType::Rejected;
+    WidgetId widget = invalid_widget;
+    WidgetId from = invalid_widget;
+    WidgetId to = invalid_widget;
+};
+
+struct FeedbackHooks {
+    void* user = nullptr;
+    void (*focus_moved)(void* user, WidgetId from, WidgetId to) = nullptr;
+    void (*activated)(void* user, WidgetId widget) = nullptr;
+    void (*rejected)(void* user, WidgetId widget) = nullptr;
+    void (*adjusted_left)(void* user, WidgetId widget) = nullptr;
+    void (*adjusted_right)(void* user, WidgetId widget) = nullptr;
+    void (*text_edit_started)(void* user, WidgetId widget) = nullptr;
+    void (*text_edit_ended)(void* user, WidgetId widget) = nullptr;
+};
+
 struct NavLinks {
     WidgetId up = invalid_widget;
     WidgetId down = invalid_widget;
@@ -136,6 +164,7 @@ struct Widget {
     Action on_left;
     Action on_right;
     Action on_back;
+    Action on_commit;
 
     WidgetId nav_up = invalid_widget;
     WidgetId nav_down = invalid_widget;

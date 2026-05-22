@@ -114,6 +114,27 @@ Screen definition objects passed to `register_basic_screen` and
 `DrawItem::style` is only a stable id. The renderer owns textures, fonts,
 animation state, sounds, and transitions.
 
+Commands are direct callbacks for app actions. Feedback is reported through
+optional hooks after `Menu::update` finishes, so sounds and debug reactions stay
+outside core menu behavior.
+
+```cpp
+struct Audio {
+    void play(const char* key);
+};
+
+Audio audio;
+gmenu::FeedbackHooks hooks;
+hooks.user = &audio;
+hooks.focus_moved = [](void* user, gmenu::WidgetId, gmenu::WidgetId) {
+    static_cast<Audio*>(user)->play("ui_cursor_move");
+};
+hooks.rejected = [](void* user, gmenu::WidgetId) {
+    static_cast<Audio*>(user)->play("ui_cant");
+};
+menu.set_feedback_hooks(&hooks);
+```
+
 Explicit navigation links can be authored separately from transient screen
 builders:
 
@@ -152,6 +173,8 @@ ImGui.
 
 Text input is backend-neutral. Put SDL text events, key-repeat backspace events,
 or another backend's text feed into `gmenu::Input::text` and `backspace`.
+Use `Widget::on_commit` when a modified text value should run an app command
+after editing ends.
 
 Paged lists cover common profile/save/mod/server/binds pages:
 

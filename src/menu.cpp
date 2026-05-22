@@ -31,6 +31,10 @@ void Menu::set_user_data(void* ptr) {
     user = ptr;
 }
 
+void Menu::set_feedback_hooks(const FeedbackHooks* hooks) {
+    feedback_hooks = hooks;
+}
+
 void Menu::register_screen(ScreenId id, ScreenBuildFn build, const void* data) {
     if (id == invalid_screen || !build) {
         return;
@@ -104,6 +108,7 @@ void Menu::clear() {
     hovered = invalid_widget;
     pressed = invalid_widget;
     editing = invalid_widget;
+    editing_start_value.clear();
     focus_times.clear();
     hover_times.clear();
     press_times.clear();
@@ -111,8 +116,11 @@ void Menu::clear() {
 
 void Menu::update(const Input& input, float dt, int width, int height,
                   glayout::FormFactor form_factor) {
+    feedback_events.clear();
+
     if (instances.empty()) {
         items.clear();
+        flush_feedback();
         return;
     }
 
@@ -121,10 +129,12 @@ void Menu::update(const Input& input, float dt, int width, int height,
     update_focus(screen, input, dt);
     if (instances.empty()) {
         items.clear();
+        flush_feedback();
         return;
     }
     screen = build_current_screen(width, height, form_factor);
     rebuild_draw_items(screen, width, height, form_factor);
+    flush_feedback();
 }
 
 std::span<const DrawItem> Menu::draw_items() const {
@@ -179,6 +189,8 @@ Screen Menu::build_current_screen(int width, int height, glayout::FormFactor for
 }
 
 void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
+    const WidgetId frame_start_focus = focused;
+
     if (!find_widget(screen, focused) || !is_selectable(*find_widget(screen, focused))) {
         focused = screen.default_focus != invalid_widget ? screen.default_focus
                                                          : first_selectable(screen);
@@ -202,32 +214,58 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
         if (up.trigger) {
             const Widget* widget = find_widget(screen, focused);
             if (widget) {
-                focused = resolve_nav(screen, focused, widget->nav_up, -1);
+                WidgetId target = resolve_nav(screen, focused, widget->nav_up, -1);
+                if (target != invalid_widget) {
+                    focused = target;
+                } else {
+                    record_widget_feedback(FeedbackType::Rejected, focused);
+                }
             }
         } else if (down.trigger) {
             const Widget* widget = find_widget(screen, focused);
             if (widget) {
-                focused = resolve_nav(screen, focused, widget->nav_down, 1);
+                WidgetId target = resolve_nav(screen, focused, widget->nav_down, 1);
+                if (target != invalid_widget) {
+                    focused = target;
+                } else {
+                    record_widget_feedback(FeedbackType::Rejected, focused);
+                }
             }
         } else if (left.trigger) {
             const Widget* widget = find_widget(screen, focused);
             if (widget && widget->on_left.type != ActionType::None) {
+                record_widget_feedback(FeedbackType::AdjustedLeft, widget->id);
                 execute(widget->on_left);
             } else if (widget && (widget->type == WidgetType::Slider1D ||
                                   widget->type == WidgetType::OptionCycle)) {
                 adjust_widget(*widget, -1);
             } else if (widget && widget->nav_left != invalid_widget) {
-                focused = resolve_nav(screen, focused, widget->nav_left, -1);
+                WidgetId target = resolve_nav(screen, focused, widget->nav_left, -1);
+                if (target != invalid_widget) {
+                    focused = target;
+                } else {
+                    record_widget_feedback(FeedbackType::Rejected, focused);
+                }
+            } else {
+                record_widget_feedback(FeedbackType::Rejected, focused);
             }
         } else if (right.trigger) {
             const Widget* widget = find_widget(screen, focused);
             if (widget && widget->on_right.type != ActionType::None) {
+                record_widget_feedback(FeedbackType::AdjustedRight, widget->id);
                 execute(widget->on_right);
             } else if (widget && (widget->type == WidgetType::Slider1D ||
                                   widget->type == WidgetType::OptionCycle)) {
                 adjust_widget(*widget, 1);
             } else if (widget && widget->nav_right != invalid_widget) {
-                focused = resolve_nav(screen, focused, widget->nav_right, 1);
+                WidgetId target = resolve_nav(screen, focused, widget->nav_right, 1);
+                if (target != invalid_widget) {
+                    focused = target;
+                } else {
+                    record_widget_feedback(FeedbackType::Rejected, focused);
+                }
+            } else {
+                record_widget_feedback(FeedbackType::Rejected, focused);
             }
         }
     }
@@ -248,7 +286,13 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
                     activate_widget(*clicked);
                 }
             } else if (clicked->id != editing) {
-                editing = invalid_widget;
+                const Widget* edited = find_widget(screen, editing);
+                if (edited) {
+                    finish_text_edit(*edited, true);
+                } else {
+                    editing = invalid_widget;
+                    editing_start_value.clear();
+                }
                 activate_widget(*clicked);
             }
         }
@@ -268,6 +312,19 @@ void Menu::update_focus(const Screen& screen, const Input& input, float dt) {
         execute(active->on_back);
     } else if (!text_editing && input.back && instances.size() > 1) {
         pop();
+    } else if (!text_editing && input.select && active && active->disabled) {
+        record_widget_feedback(FeedbackType::Rejected, active->id);
+    } else if (!text_editing && input.select && active) {
+        record_widget_feedback(FeedbackType::Rejected, active->id);
+    }
+
+    if (focused != frame_start_focus) {
+        record_feedback(FeedbackEvent{
+            FeedbackType::FocusMoved,
+            focused,
+            frame_start_focus,
+            focused,
+        });
     }
 
     for (const Widget& widget : screen.widgets) {
@@ -293,16 +350,17 @@ void Menu::update_text_input(const Screen& screen, const Input& input) {
     const Widget* active = find_widget(screen, editing);
     if (!active || active->type != WidgetType::TextInput || active->text_value == nullptr) {
         editing = invalid_widget;
+        editing_start_value.clear();
         return;
     }
 
     if (input.back) {
-        editing = invalid_widget;
+        finish_text_edit(*active, true);
         return;
     }
 
     if (input.select) {
-        editing = invalid_widget;
+        finish_text_edit(*active, true);
         return;
     }
 
@@ -335,10 +393,26 @@ void Menu::update_text_input(const Screen& screen, const Input& input) {
     }
 }
 
-void Menu::activate_widget(const Widget& widget) {
-    if (widget.disabled) {
+void Menu::finish_text_edit(const Widget& widget, bool run_commit) {
+    if (editing != widget.id) {
         return;
     }
+
+    const bool changed = widget.text_value != nullptr && *widget.text_value != editing_start_value;
+    editing = invalid_widget;
+    editing_start_value.clear();
+    record_widget_feedback(FeedbackType::TextEditEnded, widget.id);
+    if (run_commit && changed) {
+        execute(widget.on_commit);
+    }
+}
+
+void Menu::activate_widget(const Widget& widget) {
+    if (widget.disabled) {
+        record_widget_feedback(FeedbackType::Rejected, widget.id);
+        return;
+    }
+    bool activated = true;
     if (widget.type == WidgetType::Toggle && widget.bool_value) {
         *widget.bool_value = !*widget.bool_value;
     } else if (widget.type == WidgetType::Slider1D && widget.float_value) {
@@ -349,18 +423,28 @@ void Menu::activate_widget(const Widget& widget) {
     } else if (widget.type == WidgetType::TextInput && widget.text_value &&
                widget.select_enters_text) {
         editing = widget.id;
+        editing_start_value = *widget.text_value;
+        record_widget_feedback(FeedbackType::TextEditStarted, widget.id);
+        activated = false;
+    }
+    if (activated) {
+        record_widget_feedback(FeedbackType::Activated, widget.id);
     }
     execute(widget.on_select);
 }
 
 void Menu::adjust_widget(const Widget& widget, int direction) {
     if (widget.disabled) {
+        record_widget_feedback(FeedbackType::Rejected, widget.id);
         return;
     }
+    bool adjusted = false;
     if (widget.type == WidgetType::Slider1D && widget.float_value) {
+        const float before = *widget.float_value;
         *widget.float_value =
             clamp_value(*widget.float_value + (widget.step * static_cast<float>(direction)),
                         widget.min, widget.max);
+        adjusted = *widget.float_value != before;
     } else if (widget.type == WidgetType::OptionCycle && widget.option_index &&
                widget.option_count > 0) {
         int next = *widget.option_index + direction;
@@ -371,6 +455,13 @@ void Menu::adjust_widget(const Widget& widget, int direction) {
             next = 0;
         }
         *widget.option_index = next;
+        adjusted = true;
+    }
+    if (adjusted) {
+        record_widget_feedback(
+            direction < 0 ? FeedbackType::AdjustedLeft : FeedbackType::AdjustedRight, widget.id);
+    } else {
+        record_widget_feedback(FeedbackType::Rejected, widget.id);
     }
 }
 
@@ -395,7 +486,11 @@ void Menu::set_slider_from_mouse(const Widget& widget, const Input& input) {
 
     float ratio = (input.mouse_x - rect.x) / rect.w;
     ratio = std::clamp(ratio, 0.0f, 1.0f);
+    const float before = *widget.float_value;
     *widget.float_value = widget.min + ((widget.max - widget.min) * ratio);
+    if (*widget.float_value != before) {
+        record_widget_feedback(FeedbackType::Activated, widget.id);
+    }
 }
 
 void Menu::execute(const Action& action) {
@@ -502,6 +597,68 @@ bool Menu::is_selectable(const Widget& widget) const {
         return false;
     }
     return widget.type != WidgetType::Label;
+}
+
+void Menu::record_feedback(FeedbackEvent event) {
+    feedback_events.push_back(event);
+}
+
+void Menu::record_widget_feedback(FeedbackType type, WidgetId widget) {
+    FeedbackEvent event;
+    event.type = type;
+    event.widget = widget;
+    record_feedback(event);
+}
+
+void Menu::flush_feedback() {
+    if (!feedback_hooks) {
+        feedback_events.clear();
+        return;
+    }
+    for (const FeedbackEvent& event : feedback_events) {
+        dispatch_feedback(event);
+    }
+    feedback_events.clear();
+}
+
+void Menu::dispatch_feedback(const FeedbackEvent& event) const {
+    switch (event.type) {
+    case FeedbackType::FocusMoved:
+        if (feedback_hooks->focus_moved) {
+            feedback_hooks->focus_moved(feedback_hooks->user, event.from, event.to);
+        }
+        break;
+    case FeedbackType::Activated:
+        if (feedback_hooks->activated) {
+            feedback_hooks->activated(feedback_hooks->user, event.widget);
+        }
+        break;
+    case FeedbackType::Rejected:
+        if (feedback_hooks->rejected) {
+            feedback_hooks->rejected(feedback_hooks->user, event.widget);
+        }
+        break;
+    case FeedbackType::AdjustedLeft:
+        if (feedback_hooks->adjusted_left) {
+            feedback_hooks->adjusted_left(feedback_hooks->user, event.widget);
+        }
+        break;
+    case FeedbackType::AdjustedRight:
+        if (feedback_hooks->adjusted_right) {
+            feedback_hooks->adjusted_right(feedback_hooks->user, event.widget);
+        }
+        break;
+    case FeedbackType::TextEditStarted:
+        if (feedback_hooks->text_edit_started) {
+            feedback_hooks->text_edit_started(feedback_hooks->user, event.widget);
+        }
+        break;
+    case FeedbackType::TextEditEnded:
+        if (feedback_hooks->text_edit_ended) {
+            feedback_hooks->text_edit_ended(feedback_hooks->user, event.widget);
+        }
+        break;
+    }
 }
 
 } // namespace gmenu

@@ -36,6 +36,7 @@ class Menu {
     void set_layouts(const std::vector<glayout::Layout>* layout_list);
     void set_layout_store(const glayout::LayoutStore* store);
     void set_user_data(void* ptr);
+    void set_feedback_hooks(const FeedbackHooks* hooks);
 
     void register_screen(ScreenId id, ScreenBuildFn build, const void* data = nullptr);
     CommandId register_command(CommandFn fn);
@@ -84,6 +85,7 @@ class Menu {
                             glayout::FormFactor form_factor);
     void update_focus(const Screen& screen, const Input& input, float dt);
     void update_text_input(const Screen& screen, const Input& input);
+    void finish_text_edit(const Widget& widget, bool run_commit);
     void activate_widget(const Widget& widget);
     void adjust_widget(const Widget& widget, int direction);
     void set_slider_from_mouse(const Widget& widget, const Input& input);
@@ -100,6 +102,10 @@ class Menu {
     Widget* find_widget(Screen& screen, WidgetId id) const;
     WidgetId hovered_widget(const Screen& screen, const Input& input) const;
     bool is_selectable(const Widget& widget) const;
+    void record_feedback(FeedbackEvent event);
+    void record_widget_feedback(FeedbackType type, WidgetId widget);
+    void flush_feedback();
+    void dispatch_feedback(const FeedbackEvent& event) const;
 
     std::vector<ScreenDef> screens;
     std::vector<CommandFn> commands;
@@ -108,6 +114,8 @@ class Menu {
     std::vector<DrawItem> items;
     const std::vector<glayout::Layout>* layouts = nullptr;
     const glayout::LayoutStore* layout_store = nullptr;
+    const FeedbackHooks* feedback_hooks = nullptr;
+    std::vector<FeedbackEvent> feedback_events;
     std::vector<NavOverride> nav_override_records;
     bool nav_dirty_flag = false;
     void* user = nullptr;
@@ -116,6 +124,7 @@ class Menu {
     WidgetId hovered = invalid_widget;
     WidgetId pressed = invalid_widget;
     WidgetId editing = invalid_widget;
+    std::string editing_start_value;
     bool prev_mouse_down = false;
     ginput::RepeatState repeat_up;
     ginput::RepeatState repeat_down;

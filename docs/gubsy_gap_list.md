@@ -15,6 +15,7 @@ behavior.
 - focus state and explicit directional navigation
 - buttons, labels, cards, toggles, sliders, option cycles, and text input
 - command callbacks with integer payloads
+- internal feedback events flushed to optional callbacks after update
 - page previous and page next inputs
 - mouse hover, click, and basic slider mouse setting
 - visual state for focus, hover, press, disabled, and text editing
@@ -51,14 +52,13 @@ These belong in `gmenu` because they affect behavior, not just drawing.
   more coarsely.
 
 - Text edit commit behavior.
-  Gubsy can commit modified text through widget actions when editing ends.
-  `gmenu` edits caller-owned strings but does not yet expose a clean commit
-  action.
+  `gmenu` now has `Widget::on_commit` for modified text input commit. This needs
+  to be exercised in more real screens as composed-row work proceeds.
 
 - Rejection and movement feedback.
   Gubsy plays focus, confirm, cant, left, and right sounds from menu behavior.
-  `gmenu` should not own audio, but it should report enough feedback for the
-  host to play those sounds.
+  `gmenu` now reports this through optional feedback callbacks, but richer
+  slider/option-cycle interaction will add more cases.
 
 - Per-widget activation policy.
   Gubsy has `select_enters_text` and `play_select_sound`. `select_enters_text`
@@ -182,10 +182,10 @@ editing.
 
 ## Likely Next Implementation Order
 
-1. Add internal feedback events and optional feedback callbacks.
-   Include focus moved, activated, rejected, adjusted left/right, text edit
-   started, and text edit ended. Flush feedback callbacks after `Menu::update`
-   finishes. Keep app mutations in command callbacks.
+1. Extend feedback coverage as richer interactions are added.
+   The core feedback API exists for focus moved, activated, rejected, adjusted
+   left/right, text edit started, and text edit ended. Keep app mutations in
+   command callbacks.
 
 2. Add mouse focus lock/unlock.
    Keep behavior explicit and easy to debug.
