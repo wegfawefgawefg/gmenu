@@ -45,6 +45,32 @@ int page_count(int item_count, int per_page) {
     return std::max(1, (item_count + per_page - 1) / per_page);
 }
 
+void author_vertical_nav(Screen& out) {
+    std::vector<WidgetId> selectable;
+    for (const Widget& widget : out.widgets) {
+        if (widget.type != WidgetType::Label && !widget.disabled) {
+            selectable.push_back(widget.id);
+        }
+    }
+
+    for (std::size_t i = 0; i < selectable.size(); ++i) {
+        WidgetId previous = i > 0 ? selectable[i - 1] : selectable[i];
+        WidgetId next = i + 1 < selectable.size() ? selectable[i + 1] : selectable[i];
+        for (Widget& widget : out.widgets) {
+            if (widget.id != selectable[i]) {
+                continue;
+            }
+            if (widget.nav_up == invalid_widget) {
+                widget.nav_up = previous;
+            }
+            if (widget.nav_down == invalid_widget) {
+                widget.nav_down = next;
+            }
+            break;
+        }
+    }
+}
+
 } // namespace
 
 void build_basic_screen(BuildContext& ctx, Screen& out) {
@@ -60,6 +86,7 @@ void build_basic_screen(BuildContext& ctx, Screen& out) {
     for (const Widget& widget : def->widgets) {
         out.widgets.push_back(widget);
     }
+    author_vertical_nav(out);
 }
 
 void build_list_screen(BuildContext& ctx, Screen& out) {
@@ -80,6 +107,7 @@ void build_list_screen(BuildContext& ctx, Screen& out) {
         widget.disabled = item.disabled;
         out.widgets.push_back(std::move(widget));
     }
+    author_vertical_nav(out);
 }
 
 void build_paged_list_screen(BuildContext& ctx, Screen& out) {
@@ -152,6 +180,7 @@ void build_paged_list_screen(BuildContext& ctx, Screen& out) {
         back.style = def->nav_style;
         out.widgets.push_back(std::move(back));
     }
+    author_vertical_nav(out);
 }
 
 void build_settings_screen(BuildContext& ctx, Screen& out) {
@@ -206,6 +235,7 @@ void build_settings_screen(BuildContext& ctx, Screen& out) {
         back.style = def->nav_style;
         out.widgets.push_back(std::move(back));
     }
+    author_vertical_nav(out);
 }
 
 void build_profile_list_screen(BuildContext& ctx, Screen& out) {
@@ -283,6 +313,7 @@ void build_profile_list_screen(BuildContext& ctx, Screen& out) {
         back.style = def->nav_style;
         out.widgets.push_back(std::move(back));
     }
+    author_vertical_nav(out);
 }
 
 void register_basic_screen(Menu& menu, const BasicScreenDef& def) {

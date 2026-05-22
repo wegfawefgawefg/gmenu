@@ -467,36 +467,16 @@ WidgetId Menu::first_selectable(const Screen& screen) const {
 
 WidgetId Menu::resolve_nav(const Screen& screen, WidgetId from, WidgetId explicit_target,
                            int direction) const {
-    if (explicit_target != invalid_widget) {
-        const Widget* target = find_widget(screen, explicit_target);
-        if (target && is_selectable(*target)) {
-            return explicit_target;
-        }
-    }
-
-    std::vector<WidgetId> selectable;
-    for (const Widget& widget : screen.widgets) {
-        if (is_selectable(widget)) {
-            selectable.push_back(widget.id);
-        }
-    }
-    if (selectable.empty()) {
+    (void)from;
+    (void)direction;
+    if (explicit_target == invalid_widget) {
         return invalid_widget;
     }
-
-    auto it = std::find(selectable.begin(), selectable.end(), from);
-    if (it == selectable.end()) {
-        return selectable.front();
+    const Widget* target = find_widget(screen, explicit_target);
+    if (!target || !is_selectable(*target)) {
+        return invalid_widget;
     }
-    int index = static_cast<int>(std::distance(selectable.begin(), it));
-    int next = index + direction;
-    if (next < 0) {
-        next = static_cast<int>(selectable.size()) - 1;
-    }
-    if (next >= static_cast<int>(selectable.size())) {
-        next = 0;
-    }
-    return selectable[static_cast<std::size_t>(next)];
+    return explicit_target;
 }
 
 const Widget* Menu::find_widget(const Screen& screen, WidgetId id) const {

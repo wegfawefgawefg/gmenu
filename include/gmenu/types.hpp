@@ -51,7 +51,6 @@ enum class NavDirection : std::uint8_t {
 
 enum class NavSource : std::uint8_t {
     None,
-    Fallback,
     Explicit,
     Override,
 };

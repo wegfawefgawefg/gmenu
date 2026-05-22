@@ -171,20 +171,26 @@ void build_profile_edit(gmenu::BuildContext& ctx, gmenu::Screen& out) {
 
     gmenu::Widget name = gmenu::text_input(31, "row0", "Profile Name", state->profile_name, 32);
     name.style = kValueStyle;
+    name.nav_down = 32;
     out.widgets.push_back(std::move(name));
 
     gmenu::Widget save =
         gmenu::button(32, "row1", "Save Name", gmenu::Action::command_id(g_save_profile_command));
     save.style = kButtonStyle;
+    save.nav_up = 31;
+    save.nav_down = 33;
     out.widgets.push_back(std::move(save));
 
     gmenu::Widget pick =
         gmenu::button(33, "row2", "Pick Profile", gmenu::Action::push(kProfileList));
     pick.style = kButtonStyle;
+    pick.nav_up = 32;
+    pick.nav_down = 34;
     out.widgets.push_back(std::move(pick));
 
     gmenu::Widget back = gmenu::button(34, "back", "Back", gmenu::Action::pop());
     back.style = kButtonStyle;
+    back.nav_up = 33;
     out.widgets.push_back(std::move(back));
 }
 
@@ -315,8 +321,6 @@ const char* nav_source_text(gmenu::NavSource source) {
     switch (source) {
     case gmenu::NavSource::None:
         return "none";
-    case gmenu::NavSource::Fallback:
-        return "fallback";
     case gmenu::NavSource::Explicit:
         return "explicit";
     case gmenu::NavSource::Override:
@@ -365,10 +369,8 @@ void draw_nav_link(SDL_Renderer* renderer, const std::span<const gmenu::DrawItem
     SDL_FPoint to = edge_point(target->rect, direction);
     if (nav_source == gmenu::NavSource::Override) {
         set_color(renderer, 255, 210, 95);
-    } else if (nav_source == gmenu::NavSource::Explicit) {
-        set_color(renderer, 125, 180, 225);
     } else {
-        set_color(renderer, 95, 105, 115);
+        set_color(renderer, 125, 180, 225);
     }
     SDL_RenderLine(renderer, from.x, from.y, to.x, to.y);
 

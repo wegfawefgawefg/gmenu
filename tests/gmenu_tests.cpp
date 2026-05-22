@@ -46,6 +46,14 @@ void build_settings(gmenu::BuildContext& ctx, gmenu::Screen& out) {
         gmenu::option_cycle(23, "quality", "Quality", state->quality, {"low", "medium", "high"}));
     out.widgets.push_back(gmenu::text_input(22, "name", "Name", state->name, 32));
     out.widgets.push_back(gmenu::button(kBack, "back", "Back", gmenu::Action::pop()));
+    out.widgets[0].nav_down = 21;
+    out.widgets[1].nav_up = 20;
+    out.widgets[1].nav_down = 23;
+    out.widgets[2].nav_up = 21;
+    out.widgets[2].nav_down = 22;
+    out.widgets[3].nav_up = 23;
+    out.widgets[3].nav_down = kBack;
+    out.widgets[4].nav_up = 22;
 }
 
 void test_stack_and_commands() {
@@ -196,16 +204,16 @@ void test_nav_overrides() {
     menu.update(gmenu::Input{}, 0.016f, 800, 600);
 
     bool saw_override = false;
-    bool saw_fallback = false;
+    bool saw_no_fallback = false;
     for (const gmenu::DrawItem& item : menu.draw_items()) {
         if (item.id == kPlay) {
             saw_override = item.nav_down == kPlay;
-            saw_fallback =
-                item.nav_up == kSettingsButton && item.nav_up_source == gmenu::NavSource::Fallback;
+            saw_no_fallback = item.nav_up == gmenu::invalid_widget &&
+                              item.nav_up_source == gmenu::NavSource::None;
         }
     }
     assert(saw_override);
-    assert(saw_fallback);
+    assert(saw_no_fallback);
 
     gmenu::Input down;
     down.down = true;

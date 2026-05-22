@@ -116,11 +116,10 @@ menu.set_nav_link(MainMenu, PlayButton, gmenu::NavDirection::Down, SettingsButto
 menu.clear_nav_link(MainMenu, PlayButton, gmenu::NavDirection::Down);
 ```
 
-The links are applied after a screen is built. Runtime navigation uses an
-authored link first. If no link exists for that direction, `gmenu` falls back to
-selectable widget order so simple screens do not need hand-authored nav tables.
-`DrawItem` reports both the effective nav target and whether it came from an
-override, explicit widget link, or fallback.
+The links are applied after a screen is built. Runtime navigation only follows
+authored links. If no link exists for a direction, that direction does nothing.
+`DrawItem` reports both the effective nav target and whether it came from a
+saved override or an explicit widget link.
 
 Nav overrides can be saved as S-expressions:
 

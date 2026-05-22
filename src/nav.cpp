@@ -320,9 +320,6 @@ NavSource Menu::nav_source(const Screen& screen, const Widget& widget, NavDirect
     if (widget_link_for_direction(widget, direction) != invalid_widget) {
         return NavSource::Explicit;
     }
-    if (effective_nav(screen, widget, direction) != invalid_widget) {
-        return NavSource::Fallback;
-    }
     return NavSource::None;
 }
 
