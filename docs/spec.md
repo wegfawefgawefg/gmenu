@@ -16,8 +16,8 @@ behavior.
 - `glayout` for authored layout rectangles
 - `ginput` for input actions, button edges, repeat helpers, and frame state
 
-`gmenu` may use `gconfig` later for reusable settings/profile/bind screens. The
-base menu runtime should not require config storage.
+`gmenu` does not depend on `gconfig`. Reusable settings/profile/bind screens
+work on caller-owned data. Persisting that data belongs to the host or `gconfig`.
 
 ## Responsibilities
 
