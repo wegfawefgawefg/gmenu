@@ -49,6 +49,30 @@ profiles.items.push_back({30, "", "Default", "last used", gmenu::Action::none()}
 gmenu::register_paged_list_screen(menu, profiles);
 ```
 
+## Bind Action Screen
+
+```cpp
+int binds_page = 0;
+gmenu::CommandId edit_bind = menu.register_command(open_bind_capture);
+
+gmenu::BindActionListScreenDef binds;
+binds.id = Binds;
+binds.layout_id = 100;
+binds.title_id = 1;
+binds.title = "Binds";
+binds.schema = &schema;
+binds.profile = &input_profile;
+binds.page = &binds_page;
+binds.items_per_page = 6;
+binds.item_slots = {"row0", "row1", "row2", "row3", "row4", "row5"};
+binds.edit_command = edit_bind;
+
+gmenu::register_bind_action_list_screen(menu, binds);
+```
+
+Selecting an action runs `edit_bind` with the `ginput::ActionId` as payload.
+Device capture remains host-owned.
+
 ## Update
 
 ```cpp

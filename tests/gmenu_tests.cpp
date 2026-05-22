@@ -27,6 +27,11 @@ void command_mark(gmenu::BuildContext& ctx, int payload) {
 }
 
 gmenu::CommandId g_mark_command = gmenu::invalid_command;
+int g_last_edit_action = -1;
+
+void command_edit_action(gmenu::BuildContext&, int payload) {
+    g_last_edit_action = payload;
+}
 
 void build_main(gmenu::BuildContext& ctx, gmenu::Screen& out) {
     out.id = kMain;
@@ -280,6 +285,56 @@ void test_paged_list_screen() {
     assert(menu.draw_items()[2].label == "Page 2 / 2");
 }
 
+void test_bind_action_list_screen() {
+    int page = 0;
+    std::vector<glayout::Layout> layouts = make_layouts();
+    ginput::Schema schema;
+    schema.add_action(0, "Jump", "Gameplay");
+    schema.add_action(1, "Use", "Gameplay");
+    schema.add_action(2, "Menu Up", "Menu");
+
+    ginput::InputProfile profile;
+    profile.id = 1;
+    profile.name = "Keyboard";
+    ginput::add_button_bind(profile, ginput::ButtonBind{100, 0});
+    ginput::add_button_bind(profile, ginput::ButtonBind{101, 0});
+    ginput::add_button_bind(profile, ginput::ButtonBind{102, 1});
+
+    gmenu::Menu menu;
+    menu.set_layouts(&layouts);
+    gmenu::CommandId edit_command = menu.register_command(command_edit_action);
+
+    gmenu::BindActionListScreenDef def;
+    def.id = 70;
+    def.layout_id = 100;
+    def.title_id = 700;
+    def.title = "Binds";
+    def.default_focus = 1000;
+    def.schema = &schema;
+    def.profile = &profile;
+    def.page = &page;
+    def.items_per_page = 2;
+    def.item_slots = {"play", "settings"};
+    def.edit_command = edit_command;
+    def.page_label_id = 710;
+    def.prev_id = 711;
+    def.next_id = 712;
+
+    gmenu::register_bind_action_list_screen(menu, def);
+    assert(menu.set_root(70));
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    assert(menu.draw_items()[1].label == "Jump");
+    assert(menu.draw_items()[1].secondary == "2 button binds");
+    assert(menu.draw_items()[2].label == "Use");
+    assert(menu.draw_items()[2].secondary == "1 button bind");
+
+    g_last_edit_action = -1;
+    gmenu::Input select;
+    select.select = true;
+    menu.update(select, 0.016f, 800, 600);
+    assert(g_last_edit_action == 0);
+}
+
 } // namespace
 
 int main() {
@@ -288,5 +343,6 @@ int main() {
     test_ginput_mapping();
     test_canned_screens();
     test_paged_list_screen();
+    test_bind_action_list_screen();
     return 0;
 }

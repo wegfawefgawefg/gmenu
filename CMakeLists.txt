@@ -41,6 +41,7 @@ endif()
 
 add_library(gmenu
     src/input.cpp
+    src/input_screens.cpp
     src/menu.cpp
     src/screens.cpp
     src/types.cpp
