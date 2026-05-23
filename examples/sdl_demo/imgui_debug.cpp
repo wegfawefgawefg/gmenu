@@ -37,8 +37,8 @@ const char* nav_source_text(gmenu::NavSource source) {
         return "none";
     case gmenu::NavSource::Explicit:
         return "explicit";
-    case gmenu::NavSource::Override:
-        return "override";
+    case gmenu::NavSource::Graph:
+        return "graph";
     }
     return "none";
 }
@@ -70,7 +70,7 @@ void render_menu_metadata_panel(gmenu::Menu& menu) {
     ImGui::Text("Current screen: %u", menu.current_screen());
     ImGui::Text("Focus: %u", menu.focus());
     ImGui::Text("Draw items: %zu", menu.draw_items().size());
-    ImGui::Text("Nav overrides: %zu", menu.nav_overrides().size());
+    ImGui::Text("Nav graph links: %zu", menu.nav_graph_links().size());
     ImGui::SameLine();
     ImGui::TextUnformatted(menu.nav_dirty() ? "dirty" : "clean");
 

@@ -9,7 +9,7 @@ struct NavEditorState {
     WidgetId target = invalid_widget;
     ScreenId selected_screen = invalid_screen;
     NavDirection direction = NavDirection::Down;
-    int selected_override = -1;
+    int selected_link = -1;
     bool save_requested = false;
     bool load_requested = false;
 };

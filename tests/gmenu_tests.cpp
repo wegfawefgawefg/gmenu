@@ -492,6 +492,7 @@ void test_nav_overrides() {
     assert(menu.nav_links(kMain, kPlay).down == kPlay);
     assert(menu.set_root(kMain));
     menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    assert(!menu.nav_graph_links().empty());
 
     bool saw_override = false;
     bool saw_no_fallback = false;
@@ -499,7 +500,7 @@ void test_nav_overrides() {
         if (item.id == kPlay) {
             saw_override = item.nav_down == kPlay;
             saw_no_fallback = item.nav_up == gmenu::invalid_widget &&
-                              item.nav_up_source == gmenu::NavSource::None;
+                              item.nav_up_source == gmenu::NavSource::Graph;
         }
     }
     assert(saw_override);
@@ -512,11 +513,18 @@ void test_nav_overrides() {
 
     menu.clear_nav_link(kMain, kPlay, gmenu::NavDirection::Down);
     assert(menu.nav_links(kMain, kPlay).down == gmenu::invalid_widget);
+    menu.update(gmenu::Input{}, 0.016f, 800, 600);
+    for (const gmenu::DrawItem& item : menu.draw_items()) {
+        if (item.id == kPlay) {
+            assert(item.nav_down == gmenu::invalid_widget);
+            assert(item.nav_down_source == gmenu::NavSource::Graph);
+        }
+    }
 
     menu.set_nav_link(kMain, kPlay, gmenu::NavDirection::Down, 9999);
     menu.update(gmenu::Input{}, 0.016f, 800, 600);
     std::vector<gmenu::NavValidationIssue> issues =
-        menu.validate_nav_overrides(kMain, menu.draw_items());
+        menu.validate_nav_graph(kMain, menu.draw_items());
     assert(!issues.empty());
 }
 

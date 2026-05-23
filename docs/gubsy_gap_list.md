@@ -23,7 +23,7 @@ behavior.
 - mouse focus lock/unlock after keyboard/gamepad navigation
 - visual state for focus, hover, press, disabled, and text editing
 - draw items with rects, labels, values, style ids, and nav metadata
-- nav override storage, save/load, dirty state, and validation
+- nav graph storage, save/load, dirty state, and validation
 - optional ImGui menu metadata and nav editor panels
 - registered-screen metadata for debug/editor screen pickers
 - data-backed list, paged-list, profile-list, settings, and binds screens
@@ -183,7 +183,7 @@ editing.
 
 - The ImGui nav editor has selected-widget inspection, selectable effective-nav
   rows, clearer validation tables, and a registered-screen picker that can jump
-  the menu root to another screen. It can also request nav override save/load
+  the menu root to another screen. It can also request nav graph save/load
   while leaving file ownership to the host.
 
 - The combined menu editor presents layout editing and nav editing as one tool,

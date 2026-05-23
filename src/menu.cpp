@@ -174,7 +174,8 @@ Screen Menu::build_current_screen(int width, int height, glayout::FormFactor for
     screen.id = def->id;
     BuildContext ctx{*this, def->id, user, def->data};
     def->build(ctx, screen);
-    apply_nav_overrides(screen, width, height, form_factor);
+    seed_nav_graph_from_widgets(screen);
+    apply_nav_graph(screen, width, height, form_factor);
     return screen;
 }
 

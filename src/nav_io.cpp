@@ -9,20 +9,6 @@ namespace gmenu {
 
 namespace {
 
-WidgetId link_for_direction(const NavLinks& links, NavDirection direction) {
-    switch (direction) {
-    case NavDirection::Up:
-        return links.up;
-    case NavDirection::Down:
-        return links.down;
-    case NavDirection::Left:
-        return links.left;
-    case NavDirection::Right:
-        return links.right;
-    }
-    return invalid_widget;
-}
-
 void set_link_for_direction(NavLinks& links, NavDirection direction, WidgetId target) {
     switch (direction) {
     case NavDirection::Up:
@@ -94,7 +80,7 @@ bool parse_form_factor(gsexp::FormView form, NavScope& scope) {
     return true;
 }
 
-bool parse_link(gsexp::Node node, NavOverride& out) {
+bool parse_link(gsexp::Node node, NavGraphLink& out) {
     gsexp::FormView form(node);
     std::optional<int> screen = form.get_int("screen");
     std::optional<int> widget = form.get_int("widget");
@@ -115,10 +101,7 @@ bool parse_link(gsexp::Node node, NavOverride& out) {
     read_direction(form, "down", out.links, NavDirection::Down);
     read_direction(form, "left", out.links, NavDirection::Left);
     read_direction(form, "right", out.links, NavDirection::Right);
-    return link_for_direction(out.links, NavDirection::Up) != invalid_widget ||
-           link_for_direction(out.links, NavDirection::Down) != invalid_widget ||
-           link_for_direction(out.links, NavDirection::Left) != invalid_widget ||
-           link_for_direction(out.links, NavDirection::Right) != invalid_widget;
+    return true;
 }
 
 } // namespace
@@ -139,18 +122,18 @@ bool Menu::load_nav_file(const std::filesystem::path& path) {
         return false;
     }
 
-    std::vector<NavOverride> records;
+    std::vector<NavGraphLink> records;
     for (gsexp::Node child : root.children()) {
         if (!child.is_list() || !child.head().is_atom("link")) {
             continue;
         }
-        NavOverride record;
+        NavGraphLink record;
         if (parse_link(child, record)) {
             records.push_back(record);
         }
     }
 
-    nav_override_records = std::move(records);
+    nav_graph_records = std::move(records);
     nav_dirty_flag = false;
     return true;
 }
@@ -162,7 +145,7 @@ bool Menu::save_nav_file(const std::filesystem::path& path) const {
     }
 
     file << "(gmenu_nav\n";
-    for (const NavOverride& record : nav_override_records) {
+    for (const NavGraphLink& record : nav_graph_records) {
         file << "  (link\n";
         file << "    (screen " << record.scope.screen << ")\n";
         if (record.scope.layout_id != 0) {

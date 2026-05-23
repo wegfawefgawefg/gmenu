@@ -65,13 +65,13 @@ class Menu {
     void clear_nav_links(NavScope scope, WidgetId widget);
     NavLinks nav_links(ScreenId screen, WidgetId widget) const;
     NavLinks nav_links(NavScope scope, WidgetId widget) const;
-    std::span<const NavOverride> nav_overrides() const;
+    std::span<const NavGraphLink> nav_graph_links() const;
     bool nav_dirty() const;
     void mark_nav_saved();
     bool load_nav_file(const std::filesystem::path& path);
     bool save_nav_file(const std::filesystem::path& path) const;
     std::vector<NavValidationIssue>
-    validate_nav_overrides(ScreenId screen, std::span<const DrawItem> draw_item_list) const;
+    validate_nav_graph(ScreenId screen, std::span<const DrawItem> draw_item_list) const;
 
   private:
     struct ScreenInstance {
@@ -85,8 +85,9 @@ class Menu {
 
     const ScreenDef* find_screen(ScreenId id) const;
     Screen build_current_screen(int width, int height, glayout::FormFactor form_factor);
-    void apply_nav_overrides(Screen& screen, int width, int height,
-                             glayout::FormFactor form_factor) const;
+    void seed_nav_graph_from_widgets(const Screen& screen);
+    void apply_nav_graph(Screen& screen, int width, int height,
+                         glayout::FormFactor form_factor) const;
     void rebuild_draw_items(const Screen& screen, int width, int height,
                             glayout::FormFactor form_factor);
     void update_focus(const Screen& screen, const Input& input, float dt);
@@ -134,7 +135,7 @@ class Menu {
     const glayout::LayoutStore* layout_store = nullptr;
     const FeedbackHooks* feedback_hooks = nullptr;
     std::vector<FeedbackEvent> feedback_events;
-    std::vector<NavOverride> nav_override_records;
+    std::vector<NavGraphLink> nav_graph_records;
     bool nav_dirty_flag = false;
     void* user = nullptr;
 

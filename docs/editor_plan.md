@@ -58,8 +58,10 @@ The consuming game owns policy.
 - `gmenu` can consume a shared `glayout::LayoutStore`.
 - `gmenu` `DrawItem` exposes widget ids, rectangles, state, effective nav ids,
   and nav source tags.
-- `gmenu` stores nav overrides keyed by screen id and widget id.
-- `gmenu` can save and load nav overrides as S-expression files.
+- `gmenu` stores a primary nav graph keyed by screen id and widget id.
+- Code-authored widget nav seeds the nav graph on first build, and graph records
+  are authoritative once present.
+- `gmenu` can save and load the nav graph as S-expression files.
 - `gmenu::imgui` provides an optional nav editor/debug panel with registered
   screen selection, root jumping, selected-widget inspection, validation tables,
   and save/load requests.
@@ -99,7 +101,7 @@ See [gubsy_gap_list.md](gubsy_gap_list.md) for the detailed parity checklist.
    - Keep gubsy menu builders and policies in gubsy.
    - Use `gmenu` for runtime menu behavior.
    - Use `glayout` data for slot placement.
-   - Use `gmenu` nav overrides for focus graph editing.
+   - Use `gmenu` nav graph links for focus graph editing.
 
 ## Important Constraint
 

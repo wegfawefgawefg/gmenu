@@ -115,8 +115,8 @@ void render_link_target(const char* label, WidgetId target, NavSource source) {
     const char* source_text = "none";
     if (source == NavSource::Explicit) {
         source_text = "explicit";
-    } else if (source == NavSource::Override) {
-        source_text = "override";
+    } else if (source == NavSource::Graph) {
+        source_text = "graph";
     }
     ImGui::TextDisabled("(%s)", source_text);
 }
@@ -167,7 +167,7 @@ bool render_nav_editor_panel(Menu& menu, NavEditorState& editor, ScreenId screen
     } else {
         ImGui::TextUnformatted("Clean");
     }
-    std::vector<NavValidationIssue> issues = menu.validate_nav_overrides(screen, items);
+    std::vector<NavValidationIssue> issues = menu.validate_nav_graph(screen, items);
     if (!issues.empty()) {
         ImGui::SameLine();
         ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.25f, 1.0f), "%zu issue(s)", issues.size());
@@ -269,19 +269,19 @@ bool render_nav_editor_panel(Menu& menu, NavEditorState& editor, ScreenId screen
         ImGui::EndTable();
     }
 
-    ImGui::SeparatorText("Stored Overrides");
-    if (ImGui::Button("Save overrides")) {
+    ImGui::SeparatorText("Stored Nav Graph");
+    if (ImGui::Button("Save nav graph")) {
         editor.save_requested = true;
     }
     ImGui::SameLine();
-    if (ImGui::Button("Load overrides")) {
+    if (ImGui::Button("Load nav graph")) {
         editor.load_requested = true;
     }
-    const std::span<const NavOverride> overrides = menu.nav_overrides();
-    if (overrides.empty()) {
-        ImGui::TextUnformatted("No stored overrides.");
+    const std::span<const NavGraphLink> links = menu.nav_graph_links();
+    if (links.empty()) {
+        ImGui::TextUnformatted("No stored nav links.");
     }
-    for (const NavOverride& record : overrides) {
+    for (const NavGraphLink& record : links) {
         ImGui::BulletText("screen %u widget %u: U %u D %u L %u R %u", record.scope.screen,
                           record.widget, record.links.up, record.links.down, record.links.left,
                           record.links.right);

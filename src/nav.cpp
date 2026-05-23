@@ -106,7 +106,17 @@ NavScope current_scope(const Screen& screen, int width, int height,
     return scope;
 }
 
-void merge_direction(NavLinks& out, int& out_score, const NavOverride& record,
+NavScope screen_scope(ScreenId screen) {
+    NavScope scope;
+    scope.screen = screen;
+    return scope;
+}
+
+bool record_matches_widget(const NavGraphLink& record, const NavScope& scope, WidgetId widget) {
+    return record.widget == widget && scope_matches(record.scope, scope);
+}
+
+void merge_direction(NavLinks& out, int& out_score, const NavGraphLink& record,
                      NavDirection direction) {
     const WidgetId target = link_for_direction(record.links, direction);
     if (target == invalid_widget) {
@@ -119,6 +129,16 @@ void merge_direction(NavLinks& out, int& out_score, const NavOverride& record,
     }
 }
 
+bool has_matching_record(std::span<const NavGraphLink> records, const NavScope& scope,
+                         WidgetId widget) {
+    for (const NavGraphLink& record : records) {
+        if (record_matches_widget(record, scope, widget)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool item_exists(std::span<const DrawItem> items, WidgetId id) {
     for (const DrawItem& item : items) {
         if (item.id == id && item.type != WidgetType::Label) {
@@ -129,7 +149,7 @@ bool item_exists(std::span<const DrawItem> items, WidgetId id) {
 }
 
 void validate_direction(std::vector<NavValidationIssue>& issues, std::span<const DrawItem> items,
-                        const NavOverride& record, NavDirection direction) {
+                        const NavGraphLink& record, NavDirection direction) {
     const WidgetId target = link_for_direction(record.links, direction);
     if (target == invalid_widget || item_exists(items, target)) {
         return;
@@ -155,12 +175,8 @@ void Menu::set_nav_link(NavScope scope, WidgetId widget, NavDirection direction,
     if (scope.screen == invalid_screen || widget == invalid_widget) {
         return;
     }
-    if (target == invalid_widget) {
-        clear_nav_link(scope, widget, direction);
-        return;
-    }
 
-    for (NavOverride& record : nav_override_records) {
+    for (NavGraphLink& record : nav_graph_records) {
         if (record.widget == widget && same_scope(record.scope, scope)) {
             if (link_for_direction(record.links, direction) == target) {
                 return;
@@ -171,11 +187,11 @@ void Menu::set_nav_link(NavScope scope, WidgetId widget, NavDirection direction,
         }
     }
 
-    NavOverride record;
+    NavGraphLink record;
     record.scope = scope;
     record.widget = widget;
     set_link_for_direction(record.links, direction, target);
-    nav_override_records.push_back(record);
+    nav_graph_records.push_back(record);
     nav_dirty_flag = true;
 }
 
@@ -186,19 +202,7 @@ void Menu::clear_nav_link(ScreenId screen, WidgetId widget, NavDirection directi
 }
 
 void Menu::clear_nav_link(NavScope scope, WidgetId widget, NavDirection direction) {
-    auto it = std::remove_if(
-        nav_override_records.begin(), nav_override_records.end(), [&](NavOverride& record) {
-            if (record.widget != widget || !same_scope(record.scope, scope)) {
-                return false;
-            }
-            if (link_for_direction(record.links, direction) == invalid_widget) {
-                return false;
-            }
-            set_link_for_direction(record.links, direction, invalid_widget);
-            nav_dirty_flag = true;
-            return links_empty(record.links);
-        });
-    nav_override_records.erase(it, nav_override_records.end());
+    set_nav_link(scope, widget, direction, invalid_widget);
 }
 
 void Menu::clear_nav_links(ScreenId screen, WidgetId widget) {
@@ -208,16 +212,23 @@ void Menu::clear_nav_links(ScreenId screen, WidgetId widget) {
 }
 
 void Menu::clear_nav_links(NavScope scope, WidgetId widget) {
-    auto old_size = nav_override_records.size();
-    nav_override_records.erase(
-        std::remove_if(nav_override_records.begin(), nav_override_records.end(),
-                       [&](const NavOverride& record) {
-                           return record.widget == widget && same_scope(record.scope, scope);
-                       }),
-        nav_override_records.end());
-    if (nav_override_records.size() != old_size) {
-        nav_dirty_flag = true;
+    if (scope.screen == invalid_screen || widget == invalid_widget) {
+        return;
     }
+    for (NavGraphLink& record : nav_graph_records) {
+        if (record.widget == widget && same_scope(record.scope, scope)) {
+            if (!links_empty(record.links)) {
+                record.links = {};
+                nav_dirty_flag = true;
+            }
+            return;
+        }
+    }
+    NavGraphLink record;
+    record.scope = scope;
+    record.widget = widget;
+    nav_graph_records.push_back(record);
+    nav_dirty_flag = true;
 }
 
 NavLinks Menu::nav_links(ScreenId screen, WidgetId widget) const {
@@ -233,7 +244,7 @@ NavLinks Menu::nav_links(NavScope scope, WidgetId widget) const {
     int left_score = -1;
     int right_score = -1;
 
-    for (const NavOverride& record : nav_override_records) {
+    for (const NavGraphLink& record : nav_graph_records) {
         if (record.widget != widget || !scope_matches(record.scope, scope)) {
             continue;
         }
@@ -245,8 +256,8 @@ NavLinks Menu::nav_links(NavScope scope, WidgetId widget) const {
     return out;
 }
 
-std::span<const NavOverride> Menu::nav_overrides() const {
-    return nav_override_records;
+std::span<const NavGraphLink> Menu::nav_graph_links() const {
+    return nav_graph_records;
 }
 
 bool Menu::nav_dirty() const {
@@ -258,9 +269,9 @@ void Menu::mark_nav_saved() {
 }
 
 std::vector<NavValidationIssue>
-Menu::validate_nav_overrides(ScreenId screen, std::span<const DrawItem> draw_item_list) const {
+Menu::validate_nav_graph(ScreenId screen, std::span<const DrawItem> draw_item_list) const {
     std::vector<NavValidationIssue> issues;
-    for (const NavOverride& record : nav_override_records) {
+    for (const NavGraphLink& record : nav_graph_records) {
         if (record.scope.screen != screen) {
             continue;
         }
@@ -280,23 +291,48 @@ Menu::validate_nav_overrides(ScreenId screen, std::span<const DrawItem> draw_ite
     return issues;
 }
 
-void Menu::apply_nav_overrides(Screen& screen, int width, int height,
-                               glayout::FormFactor form_factor) const {
+void Menu::seed_nav_graph_from_widgets(const Screen& screen) {
+    if (screen.id == invalid_screen) {
+        return;
+    }
+
+    const NavScope scope = screen_scope(screen.id);
+    for (const Widget& widget : screen.widgets) {
+        if (widget.id == invalid_widget ||
+            has_matching_record(nav_graph_records, scope, widget.id)) {
+            continue;
+        }
+
+        NavLinks links;
+        links.up = widget.nav_up;
+        links.down = widget.nav_down;
+        links.left = widget.nav_left;
+        links.right = widget.nav_right;
+        if (links_empty(links)) {
+            continue;
+        }
+
+        NavGraphLink record;
+        record.scope = scope;
+        record.widget = widget.id;
+        record.links = links;
+        nav_graph_records.push_back(record);
+        nav_dirty_flag = true;
+    }
+}
+
+void Menu::apply_nav_graph(Screen& screen, int width, int height,
+                           glayout::FormFactor form_factor) const {
     const NavScope scope = current_scope(screen, width, height, form_factor);
     for (Widget& widget : screen.widgets) {
+        if (!has_matching_record(nav_graph_records, scope, widget.id)) {
+            continue;
+        }
         const NavLinks links = nav_links(scope, widget.id);
-        if (link_for_direction(links, NavDirection::Up) != invalid_widget) {
-            widget.nav_up = links.up;
-        }
-        if (link_for_direction(links, NavDirection::Down) != invalid_widget) {
-            widget.nav_down = links.down;
-        }
-        if (link_for_direction(links, NavDirection::Left) != invalid_widget) {
-            widget.nav_left = links.left;
-        }
-        if (link_for_direction(links, NavDirection::Right) != invalid_widget) {
-            widget.nav_right = links.right;
-        }
+        widget.nav_up = links.up;
+        widget.nav_down = links.down;
+        widget.nav_left = links.left;
+        widget.nav_right = links.right;
     }
 }
 
@@ -313,9 +349,8 @@ WidgetId Menu::effective_nav(const Screen& screen, const Widget& widget,
 NavSource Menu::nav_source(const Screen& screen, const Widget& widget, NavDirection direction,
                            int width, int height, glayout::FormFactor form_factor) const {
     const NavScope scope = current_scope(screen, width, height, form_factor);
-    const NavLinks links = nav_links(scope, widget.id);
-    if (link_for_direction(links, direction) != invalid_widget) {
-        return NavSource::Override;
+    if (has_matching_record(nav_graph_records, scope, widget.id)) {
+        return NavSource::Graph;
     }
     if (widget_link_for_direction(widget, direction) != invalid_widget) {
         return NavSource::Explicit;

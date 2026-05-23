@@ -407,8 +407,8 @@ const char* nav_source_text(gmenu::NavSource source) {
         return "none";
     case gmenu::NavSource::Explicit:
         return "explicit";
-    case gmenu::NavSource::Override:
-        return "override";
+    case gmenu::NavSource::Graph:
+        return "graph";
     }
     return "none";
 }
@@ -451,7 +451,7 @@ void draw_nav_link(SDL_Renderer* renderer, const std::span<const gmenu::DrawItem
 
     SDL_FPoint from = edge_point(source.rect, direction);
     SDL_FPoint to = edge_point(target->rect, direction);
-    if (nav_source == gmenu::NavSource::Override) {
+    if (nav_source == gmenu::NavSource::Graph) {
         set_color(renderer, 255, 210, 95);
     } else {
         set_color(renderer, 125, 180, 225);
@@ -562,6 +562,7 @@ void draw_item(SDL_Renderer* renderer, const gmenu::DrawItem& item) {
 void apply_key(SDL_Keycode key, SDL_Keymod mod, bool down, HeldInput& held, gmenu::Input& input,
                glayout::EditorInput& editor_input, DemoToggles& toggles, NavEditState& nav_editor) {
     const bool ctrl = (mod & SDL_KMOD_CTRL) != 0;
+    const bool alt = (mod & SDL_KMOD_ALT) != 0;
     switch (key) {
     case SDLK_F1:
         if (down) {
@@ -592,7 +593,7 @@ void apply_key(SDL_Keycode key, SDL_Keymod mod, bool down, HeldInput& held, gmen
         break;
     case SDLK_UP:
     case SDLK_W:
-        if (toggles.nav_overlay && down) {
+        if (toggles.nav_overlay && down && alt) {
             nav_editor.direction = gmenu::NavDirection::Up;
             nav_editor.has_direction = true;
         } else if (!toggles.nav_overlay) {
@@ -600,7 +601,7 @@ void apply_key(SDL_Keycode key, SDL_Keymod mod, bool down, HeldInput& held, gmen
         }
         break;
     case SDLK_DOWN:
-        if (toggles.nav_overlay && down) {
+        if (toggles.nav_overlay && down && alt) {
             nav_editor.direction = gmenu::NavDirection::Down;
             nav_editor.has_direction = true;
         } else if (!toggles.nav_overlay) {
@@ -609,7 +610,7 @@ void apply_key(SDL_Keycode key, SDL_Keymod mod, bool down, HeldInput& held, gmen
         break;
     case SDLK_LEFT:
     case SDLK_A:
-        if (toggles.nav_overlay && down) {
+        if (toggles.nav_overlay && down && alt) {
             nav_editor.direction = gmenu::NavDirection::Left;
             nav_editor.has_direction = true;
         } else if (!toggles.nav_overlay) {
@@ -618,7 +619,7 @@ void apply_key(SDL_Keycode key, SDL_Keymod mod, bool down, HeldInput& held, gmen
         break;
     case SDLK_RIGHT:
     case SDLK_D:
-        if (toggles.nav_overlay && down) {
+        if (toggles.nav_overlay && down && alt) {
             nav_editor.direction = gmenu::NavDirection::Right;
             nav_editor.has_direction = true;
         } else if (!toggles.nav_overlay) {
@@ -684,7 +685,10 @@ void apply_key(SDL_Keycode key, SDL_Keymod mod, bool down, HeldInput& held, gmen
         }
         break;
     case SDLK_S:
-        if (down && toggles.nav_overlay) {
+        if (toggles.nav_overlay && down && alt) {
+            nav_editor.direction = gmenu::NavDirection::Down;
+            nav_editor.has_direction = true;
+        } else if (down && toggles.nav_overlay) {
             nav_editor.save_requested = true;
         }
         break;
@@ -753,7 +757,7 @@ int main(int, char**) {
     menu.set_layout_store(&layout_store);
     menu.set_user_data(&state);
     if (menu.load_nav_file(nav_path)) {
-        state.save_status = "loaded nav overrides";
+        state.save_status = "loaded nav graph";
     }
     g_quit_command = menu.register_command(command_quit);
     g_select_profile_command = menu.register_command(command_select_profile);
@@ -1017,18 +1021,18 @@ int main(int, char**) {
         if (toggles.nav_overlay && nav_editor.save_requested) {
             if (menu.save_nav_file(nav_path)) {
                 menu.mark_nav_saved();
-                state.save_status = "saved nav overrides";
+                state.save_status = "saved nav graph";
             } else {
-                state.save_status = "failed to save nav overrides";
+                state.save_status = "failed to save nav graph";
             }
             nav_editor.save_requested = false;
         }
         if (toggles.nav_overlay && nav_editor.load_requested) {
             if (menu.load_nav_file(nav_path)) {
-                state.save_status = "loaded nav overrides";
+                state.save_status = "loaded nav graph";
                 menu.update(gmenu::Input{}, 0.0f, width, height);
             } else {
-                state.save_status = "failed to load nav overrides";
+                state.save_status = "failed to load nav graph";
             }
             nav_editor.load_requested = false;
         }
@@ -1062,7 +1066,8 @@ int main(int, char**) {
         } else if (toggles.nav_overlay) {
             std::string nav_text = "Ctrl+N nav edit ON: click source";
             if (nav_editor.source != gmenu::invalid_widget) {
-                nav_text += " #" + std::to_string(nav_editor.source) + ", arrow chooses direction";
+                nav_text +=
+                    " #" + std::to_string(nav_editor.source) + ", Alt+arrow chooses direction";
             }
             if (nav_editor.has_direction) {
                 nav_text += ", click target for ";
@@ -1075,7 +1080,7 @@ int main(int, char**) {
         }
         draw_text(renderer, 18.0f, static_cast<float>(height) - 28.0f,
                   "Ctrl+L layout edit, Ctrl+N nav edit, F10 ImGui debug, arrows navigate, enter "
-                  "select/edit, esc back, q/e page; nav S save/L load; status: " +
+                  "select/edit, esc back, q/e page; nav Alt+arrows link, S save/L load; status: " +
                       state.save_status);
 
 #if defined(GMENU_SDL_DEMO_WITH_IMGUI)
@@ -1083,18 +1088,18 @@ int main(int, char**) {
         if (debug_ui.nav_editor.save_requested) {
             if (menu.save_nav_file(nav_path)) {
                 menu.mark_nav_saved();
-                state.save_status = "saved nav overrides";
+                state.save_status = "saved nav graph";
             } else {
-                state.save_status = "failed to save nav overrides";
+                state.save_status = "failed to save nav graph";
             }
             debug_ui.nav_editor.save_requested = false;
         }
         if (debug_ui.nav_editor.load_requested) {
             if (menu.load_nav_file(nav_path)) {
-                state.save_status = "loaded nav overrides";
+                state.save_status = "loaded nav graph";
                 imgui_changed = true;
             } else {
-                state.save_status = "failed to load nav overrides";
+                state.save_status = "failed to load nav graph";
             }
             debug_ui.nav_editor.load_requested = false;
         }

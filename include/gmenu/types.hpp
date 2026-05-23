@@ -52,7 +52,7 @@ enum class NavDirection : std::uint8_t {
 enum class NavSource : std::uint8_t {
     None,
     Explicit,
-    Override,
+    Graph,
 };
 
 enum class FeedbackType : std::uint8_t {
@@ -120,7 +120,7 @@ struct NavScope {
     bool match_form_factor = false;
 };
 
-struct NavOverride {
+struct NavGraphLink {
     NavScope scope;
     WidgetId widget = invalid_widget;
     NavLinks links;

@@ -25,7 +25,7 @@ It does not own SDL, rendering, audio, asset loading, or animation systems.
 - composed-row helper that emits ordinary widgets with authored nav
 - draw/view items with rects, widget state, labels, values, and style ids
 - control hit rects for slider tracks and option-cycle sub-regions
-- explicit nav override storage for editor-authored focus links
+- persisted nav graph storage for editor-authored focus links
 - optional `gmenu::imgui` helpers for nav editing/debugging
 - a small `ginput::FrameState` to `gmenu::Input` adapter
 
@@ -150,7 +150,12 @@ menu.clear_nav_link(MainMenu, PlayButton, gmenu::NavDirection::Down);
 The links are applied after a screen is built. Runtime navigation only follows
 authored links. If no link exists for a direction, that direction does nothing.
 `DrawItem` reports both the effective nav target and whether it came from a
-saved override or an explicit widget link.
+persisted nav graph link or an explicit widget link.
+
+If a builder provides `Widget::nav_*` defaults, `Menu::update` seeds them into
+the nav graph the first time that screen is built. After that, the graph is
+authoritative for that widget: clearing a graph direction means no movement in
+that direction, not a fallback to builder data.
 
 `gmenu` also keeps a short runtime return-path memory. If multiple widgets enter
 the same target, the opposite direction returns to the widget that was used to
@@ -164,7 +169,7 @@ for (const gmenu::ScreenDef& screen : menu.registered_screens()) {
 }
 ```
 
-Nav overrides can be saved as S-expressions:
+The nav graph can be saved as S-expressions:
 
 ```cpp
 menu.save_nav_file("menu_nav.lisp");
@@ -258,10 +263,10 @@ Demo controls:
 
 - `Ctrl+L`: edit `glayout` slots. Drag rectangles; use `Z`/`Y` for undo/redo,
   `C`/`V` for copy/paste, and delete/backspace to remove a slot.
-- `Ctrl+N`: edit `gmenu` navigation. Click a source widget, press an arrow for the
+- `Ctrl+N`: edit `gmenu` navigation. Click a source widget, press Alt+arrow for the
   direction, then click a target widget. Backspace clears the armed direction;
-  delete clears links for the selected source. `S` saves nav overrides to
-  `gmenu_nav_demo.lisp`; `L` reloads them.
+  delete clears links for the selected source. `S` saves the nav graph to
+  `gmenu_nav_demo.lisp`; `L` reloads it.
 - `F10`: toggle ImGui debug windows in ImGui-enabled demo builds. `F9` toggles
   the small debug bar.
 
