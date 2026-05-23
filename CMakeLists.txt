@@ -58,6 +58,11 @@ add_library(gmenu
     src/input.cpp
     src/input_screens.cpp
     src/menu.cpp
+    src/menu_actions.cpp
+    src/menu_feedback.cpp
+    src/menu_interaction.cpp
+    src/menu_lookup.cpp
+    src/menu_nav_runtime.cpp
     src/nav.cpp
     src/nav_io.cpp
     src/rows.cpp
