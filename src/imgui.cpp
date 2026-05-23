@@ -121,6 +121,18 @@ void render_link_target(const char* label, WidgetId target, NavSource source) {
     ImGui::TextDisabled("(%s)", source_text);
 }
 
+void render_status_line(Menu& menu, std::span<const NavValidationIssue> issues) {
+    if (menu.nav_dirty()) {
+        ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Dirty");
+    } else {
+        ImGui::TextUnformatted("Clean");
+    }
+    if (!issues.empty()) {
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.25f, 1.0f), "%zu issue(s)", issues.size());
+    }
+}
+
 void render_selected_widget(NavEditorState& editor, std::span<const DrawItem> items) {
     const DrawItem* item = find_item(items, editor.source);
     if (!item) {
@@ -146,8 +158,10 @@ void render_selected_widget(NavEditorState& editor, std::span<const DrawItem> it
 
 bool render_nav_editor(Menu& menu, NavEditorState& editor, ScreenId screen,
                        std::span<const DrawItem> items) {
-    ImGui::SetNextWindowSize(ImVec2(520.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("gmenu: Navigation")) {
+    ImGuiWindowFlags flags = ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings;
+    ImGui::SetNextWindowPos(ImVec2(18.0f, 18.0f), ImGuiCond_FirstUseEver);
+    ImGui::SetNextWindowBgAlpha(0.93f);
+    if (!ImGui::Begin("Navigation Editor", nullptr, flags)) {
         ImGui::End();
         return false;
     }
@@ -162,16 +176,9 @@ bool render_nav_editor_panel(Menu& menu, NavEditorState& editor, ScreenId screen
                              std::span<const DrawItem> items) {
     bool changed = false;
 
-    if (menu.nav_dirty()) {
-        ImGui::TextColored(ImVec4(1.0f, 0.72f, 0.25f, 1.0f), "Dirty");
-    } else {
-        ImGui::TextUnformatted("Clean");
-    }
     std::vector<NavValidationIssue> issues = menu.validate_nav_graph(screen, items);
-    if (!issues.empty()) {
-        ImGui::SameLine();
-        ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.25f, 1.0f), "%zu issue(s)", issues.size());
-    }
+    ImGui::TextUnformatted("Ctrl+N toggle | Alt+WASD/Arrows arm direction | click target");
+    render_status_line(menu, issues);
 
     if (editor.selected_screen == invalid_screen) {
         editor.selected_screen = screen;
@@ -197,12 +204,10 @@ bool render_nav_editor_panel(Menu& menu, NavEditorState& editor, ScreenId screen
     ImGui::SameLine();
     ImGui::Text("Current: #%u", menu.current_screen());
 
+    ImGui::SeparatorText("Link");
     selectable_widget_combo("Source", editor.source, items);
     direction_combo(editor.direction);
     selectable_widget_combo("Target", editor.target, items);
-
-    ImGui::SeparatorText("Selected Widget");
-    render_selected_widget(editor, items);
 
     const bool can_set = screen != invalid_screen && editor.source != invalid_widget &&
                          editor.target != invalid_widget;
@@ -233,9 +238,15 @@ bool render_nav_editor_panel(Menu& menu, NavEditorState& editor, ScreenId screen
         ImGui::EndDisabled();
     }
 
+    ImGui::SeparatorText("Selected Widget");
+    render_selected_widget(editor, items);
+
     ImGui::SeparatorText("Effective Links");
-    if (ImGui::BeginTable("effective_nav", 6, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders)) {
+    if (ImGui::BeginTable("effective_nav", 7,
+                          ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_ScrollY,
+                          ImVec2(680.0f, 220.0f))) {
         ImGui::TableSetupColumn("Widget");
+        ImGui::TableSetupColumn("Type");
         ImGui::TableSetupColumn("Up");
         ImGui::TableSetupColumn("Down");
         ImGui::TableSetupColumn("Left");
@@ -255,14 +266,16 @@ bool render_nav_editor_panel(Menu& menu, NavEditorState& editor, ScreenId screen
                 editor.source = item.id;
             }
             ImGui::TableSetColumnIndex(1);
-            ImGui::Text("#%u", item.nav_up);
+            ImGui::TextUnformatted(widget_type_label(item.type));
             ImGui::TableSetColumnIndex(2);
-            ImGui::Text("#%u", item.nav_down);
+            ImGui::Text("#%u", item.nav_up);
             ImGui::TableSetColumnIndex(3);
-            ImGui::Text("#%u", item.nav_left);
+            ImGui::Text("#%u", item.nav_down);
             ImGui::TableSetColumnIndex(4);
-            ImGui::Text("#%u", item.nav_right);
+            ImGui::Text("#%u", item.nav_left);
             ImGui::TableSetColumnIndex(5);
+            ImGui::Text("#%u", item.nav_right);
+            ImGui::TableSetColumnIndex(6);
             ImGui::TextUnformatted(item.label.c_str());
             ImGui::PopID();
         }
@@ -281,10 +294,31 @@ bool render_nav_editor_panel(Menu& menu, NavEditorState& editor, ScreenId screen
     if (links.empty()) {
         ImGui::TextUnformatted("No stored nav links.");
     }
-    for (const NavGraphLink& record : links) {
-        ImGui::BulletText("screen %u widget %u: U %u D %u L %u R %u", record.scope.screen,
-                          record.widget, record.links.up, record.links.down, record.links.left,
-                          record.links.right);
+    if (!links.empty() &&
+        ImGui::BeginTable("stored_nav_graph", 6, ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders)) {
+        ImGui::TableSetupColumn("Screen");
+        ImGui::TableSetupColumn("Widget");
+        ImGui::TableSetupColumn("Up");
+        ImGui::TableSetupColumn("Down");
+        ImGui::TableSetupColumn("Left");
+        ImGui::TableSetupColumn("Right");
+        ImGui::TableHeadersRow();
+        for (const NavGraphLink& record : links) {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%u", record.scope.screen);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%u", record.widget);
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("%u", record.links.up);
+            ImGui::TableSetColumnIndex(3);
+            ImGui::Text("%u", record.links.down);
+            ImGui::TableSetColumnIndex(4);
+            ImGui::Text("%u", record.links.left);
+            ImGui::TableSetColumnIndex(5);
+            ImGui::Text("%u", record.links.right);
+        }
+        ImGui::EndTable();
     }
 
     if (!issues.empty() && ImGui::CollapsingHeader("Validation", ImGuiTreeNodeFlags_DefaultOpen)) {
